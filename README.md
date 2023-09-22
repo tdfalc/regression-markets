@@ -1,6 +1,6 @@
 # Regression Markets
 
-## v1 - Introducing regression markets
+## v0 - Introducing regression markets
  
 Python implemention of [Regression markets and application to energy forecasting](https://link.springer.com/article/10.1007/s11750-022-00631-7). 
 
