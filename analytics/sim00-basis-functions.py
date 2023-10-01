@@ -5,7 +5,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from common.log import create_logger
-from analytics.helpers import save_figure
+from analytics.helpers import save_figure, set_plot_style
 
 
 class BasisFunctions:
@@ -34,6 +34,8 @@ class BasisFunctions:
 def main():
     logger = create_logger(__name__)
     logger.info("Running basis functions analysis")
+
+    set_plot_style()
 
     savedir = Path(__file__).parent / "docs/sim00-basis-functions"
     os.makedirs(savedir, exist_ok=True)
