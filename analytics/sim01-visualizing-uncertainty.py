@@ -119,7 +119,7 @@ def main():
         "high_correlation": {"sample_size": 500, "correlation": 0.995},
     }
 
-    fig, axs = plt.subplots(1, 3, figsize=(10, 3), sharey=True, sharex=True)
+    fig, axs = plt.subplots(1, 3, figsize=(8, 2.5), sharey=True, sharex=True)
 
     for ax, (_, experiment_config) in zip(axs.flatten(), experiments.items()):
         X, y = make_regression(

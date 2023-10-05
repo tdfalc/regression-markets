@@ -8,7 +8,7 @@ from matplotlib import pyplot as plt
 from scipy.stats._multivariate import multivariate_normal_frozen as mvn_frozen
 
 from market.task import BayesianLinearRegression
-from analytics.helpers import save_figure, add_dummy, set_plot_style
+from analytics.helpers import save_figure, add_dummy
 from common.log import create_logger
 
 
@@ -88,8 +88,6 @@ def main():
     logger = create_logger(__name__)
     logger.info("Running quantifying uncertainty analysis")
 
-    set_plot_style()
-
     savedir = Path(__file__).parent / "docs/sim02-quantifying-uncertainty"
     os.makedirs(savedir, exist_ok=True)
 
@@ -104,8 +102,7 @@ def main():
         {"sample_size": 40},
     ]
 
-    fig = plt.figure(figsize=(15, 10))
-    plt.subplots_adjust(hspace=0.6, wspace=0.3)
+    fig = plt.figure(figsize=(8, 6.8))
 
     for i, experiment in enumerate(experiments):
         X, y = make_regression(coefficients, noise_variance, **experiment)

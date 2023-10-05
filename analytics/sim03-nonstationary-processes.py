@@ -15,12 +15,7 @@ from mpl_toolkits.axes_grid1.inset_locator import InsetPosition
 from market.task import RobustBayesianLinearRegression
 from common.log import create_logger
 from common.utils import cache, tqdm_joblib
-from analytics.helpers import (
-    save_figure,
-    set_plot_style,
-    # dark2_color_palette,
-    # create_custom_colormap,
-)
+from analytics.helpers import save_figure, classic_colors
 
 
 def sample_input(num_features: int) -> np.ndarray:
@@ -44,21 +39,10 @@ def plot_coefficients(
     savedir: Path,
     burn_in: int = 50,
 ):
-    # colors = dark2_color_palette(4)
-    # colors = [
-    #     "#C44F51",
-    #     "#55A868",
-    #     "#4C72B0",
-    #     "#CCB974",
-    # ]
-    # cmap_custom = create_custom_colormap(colors[2], "#FFFFFF")
-    # colors = cycle(colors)
-    vmin, vmax = np.min(forgetting_factors), np.max(forgetting_factors)
-    norm = lambda vmax: mpl.colors.Normalize(vmin=vmin, vmax=vmax)
-    # smap = cm.ScalarMappable(norm=norm(vmax + 0.03), cmap=cmap_custom)
-    # smap_fake = cm.ScalarMappable(norm=norm(vmax), cmap=cmap_custom)
-
-    fig, axs = plt.subplots(1, len(experiments), sharey=True, figsize=(8, 3))
+    fig, axs = plt.subplots(
+        1, len(experiments), sharey=True, figsize=(5.7, 2.5)
+    )
+    colors = cycle(classic_colors()[4:7])
 
     for i, ((experiment_title, experiment_config), ax) in enumerate(
         zip(experiments.items(), axs.flatten())
@@ -67,50 +51,31 @@ def plot_coefficients(
         coefficients = experiment_config["coefficients"]
         ax.ticklabel_format(axis="x", style="sci", scilimits=(0, 0))
 
-        # for j in range(coefficients.shape[1]):
         ax.plot(
             coefficients[burn_in:, agent],
-            # color=next(colors),
-            # color="k",
-            # zorder=1 if j != agent else 2,
-            # label=f"$w_{agent#}$",
+            color="k",
             lw=1.6,
-            # alpha=0.3 if j != agent else 0.3,
         )
-        # ax.grid(alpha=0.3)
 
-        # if j == agent:
         for ff in forgetting_factors:
             data = estimated_coefficients[ff][:, burn_in:, agent]
             ax.plot(
                 data.mean(axis=0),
                 zorder=2,
-                # color=smap.to_rgba(ff),
+                color=next(colors),
                 lw=1.6,
-                ls=(0, (5, 4)),  # (length, spacing)
+                label=ff,
+                ls="dashed",
             )
 
-        ax.set_xlabel("Time Step")
-        # if i == 0:
-        # ax.legend()
-
+        if i == 0:
+            ax.legend(framealpha=0)
         ax.set_ylabel("Coefficient Value")
+        ax.ticklabel_format(
+            axis="x", style="scientific", scilimits=(1, 0), useMathText=True
+        )
+        ax.set_xlabel("Time Step")
         ax.yaxis.set_tick_params(labelbottom=True)
-
-    ax = axs.flatten()[-2]
-    axins = inset_axes(ax, width="5%", height="100%", loc="right", borderpad=-4)
-    ip = InsetPosition(ax, [0.5, 1.1, 1.2, 0.09])  # posx, posy, width, height
-    axins.set_axes_locator(ip)
-    # cb = fig.colorbar(
-    #     smap_fake,
-    #     cax=axins,
-    #     label=r"$\tau$",
-    #     orientation="horizontal",
-    #     # labelpad=-40,
-    # )
-    # cb.set_label(r"$\tau$", labelpad=7)
-    axins.xaxis.set_ticks_position("top")
-    axins.xaxis.set_label_position("top")
 
     save_figure(fig, savedir, f"estimated_coefficients")
 
@@ -118,8 +83,6 @@ def plot_coefficients(
 def main():
     logger = create_logger(__name__)
     logger.info("Running nonstationary processes analysis")
-
-    set_plot_style()
 
     savedir = Path(__file__).parent / "docs/sim03-nonstationary-processes"
     os.makedirs(savedir, exist_ok=True)
@@ -138,18 +101,31 @@ def main():
         0.98,
         0.99,
         0.995,
+        0.996,
+        0.997,
+        0.998,
         0.999,
+        0.9993,
+        0.9995,
+        0.9996,
+        0.9997,
+        0.99972,
+        0.99975,
+        0.99977,
+        0.99980,
+        0.99982,
+        0.99983,
+        0.99985,
+        0.99987,
+        0.99988,
+        0.99989,
         0.9999,
+        0.99995,
         0.99999,
         1,
     ]
 
     experiments = {
-        # "stationary": {
-        #     "coefficients": np.tile(
-        #         np.array([0, -0.2, 0.6, 0.3]), (sample_size, 1)
-        #     )
-        # },
         "smooth_nonstationarity": {
             "coefficients": np.hstack(
                 [
@@ -239,19 +215,11 @@ def main():
         experiments,
         results,
         [
-            # ###0.92,
-            # 0.93,
-            # 0.94,
-            # 0.95,
-            # 0.96,
-            # 0.97,
-            # 0.98,
-            # 0.99,
-            # 0.995,
+            0.98,
+            # 0.998,
             # 0.999,
-            # 0.9999,
-            # 0.99999,
-            1,
+            0.9995,
+            0.99999,
         ],
         agent=2,
         savedir=savedir,

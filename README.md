@@ -23,4 +23,9 @@ If you find this useful in your work, we kindly request that you cite the follow
     publisher={Springer},
 }
 ```
+## v1 - Towards Bayesian regression markets
+ 
+Python implemention of [Bayesian Regression Markets](). 
 
+* Transition to Bayesian regression analyses.
+* Allocation policies based on both log-likelihood and KL divergence.

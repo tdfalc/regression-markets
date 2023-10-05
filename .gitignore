@@ -163,3 +163,4 @@ cython_debug/
 
 # Ignore cache
 cache/
+/cache*/
