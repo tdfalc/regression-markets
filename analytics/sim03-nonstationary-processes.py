@@ -11,8 +11,9 @@ from matplotlib import pyplot as plt
 from tqdm import tqdm
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from mpl_toolkits.axes_grid1.inset_locator import InsetPosition
+from matplotlib.ticker import MaxNLocator
 
-from market.task import RobustBayesianLinearRegression
+from market.task import OnlineBayesianLinearRegression
 from common.log import create_logger
 from common.utils import cache, tqdm_joblib
 from analytics.helpers import save_figure, classic_colors
@@ -42,14 +43,14 @@ def plot_coefficients(
     fig, axs = plt.subplots(
         1, len(experiments), sharey=True, figsize=(5.7, 2.5)
     )
-    colors = cycle(classic_colors()[4:7])
+    line_styles = cycle(["solid", "dashed", "dotted"])
+    colors = cycle(classic_colors()[4:])
 
     for i, ((experiment_title, experiment_config), ax) in enumerate(
         zip(experiments.items(), axs.flatten())
     ):
         estimated_coefficients = results[experiment_title]
         coefficients = experiment_config["coefficients"]
-        ax.ticklabel_format(axis="x", style="sci", scilimits=(0, 0))
 
         ax.plot(
             coefficients[burn_in:, agent],
@@ -65,17 +66,17 @@ def plot_coefficients(
                 color=next(colors),
                 lw=1.6,
                 label=ff,
-                ls="dashed",
             )
 
         if i == 0:
             ax.legend(framealpha=0)
         ax.set_ylabel("Coefficient Value")
+        ax.set_xticks(np.linspace(0, len(coefficients), 5))
         ax.ticklabel_format(
-            axis="x", style="scientific", scilimits=(1, 0), useMathText=True
+            axis="x", style="scientific", scilimits=(0, 0), useMathText=True
         )
         ax.set_xlabel("Time Step")
-        ax.yaxis.set_tick_params(labelbottom=True)
+        # ax.yaxis.set_tick_params(labelbottom=True)
 
     save_figure(fig, savedir, f"estimated_coefficients")
 
@@ -88,50 +89,18 @@ def main():
     os.makedirs(savedir, exist_ok=True)
 
     noise_variance = 1
-    sample_size = 10000
+    sample_size = 1000
     num_samples = 100
     regularization = 1e-5
-    forgetting_factors = [
-        0.92,
-        0.93,
-        0.94,
-        0.95,
-        0.96,
-        0.97,
-        0.98,
-        0.99,
-        0.995,
-        0.996,
-        0.997,
-        0.998,
-        0.999,
-        0.9993,
-        0.9995,
-        0.9996,
-        0.9997,
-        0.99972,
-        0.99975,
-        0.99977,
-        0.99980,
-        0.99982,
-        0.99983,
-        0.99985,
-        0.99987,
-        0.99988,
-        0.99989,
-        0.9999,
-        0.99995,
-        0.99999,
-        1,
-    ]
-
+    forgetting_factors = [0.94, 0.995, 0.99999]
     experiments = {
         "smooth_nonstationarity": {
             "coefficients": np.hstack(
                 [
                     np.linspace(0, 0, sample_size).reshape(-1, 1),
                     np.linspace(-0.2, -0.2, sample_size).reshape(-1, 1),
-                    np.linspace(0.6**0.5, 0, sample_size).reshape(-1, 1) ** 2,
+                    np.linspace(0.1, 0.6**0.5, sample_size).reshape(-1, 1)
+                    ** 2,
                     np.linspace(0.3, 0.3, sample_size).reshape(-1, 1),
                 ]
             ),
@@ -140,17 +109,13 @@ def main():
             "coefficients": np.concatenate(
                 (
                     np.tile(
+                        np.array([0, -0.2, 0.1, 0.3]),
+                        (int(sample_size / 2), 1),
+                    ),
+                    np.tile(
                         np.array([0, -0.2, 0.6, 0.3]),
-                        (int(sample_size / 2.2), 1),
-                    ),
-                    np.tile(
-                        np.array([0, -0.2, 0, 0.3]),
-                        (int(sample_size / 1.8) - int(sample_size / 2.2), 1),
-                    ),
-                    np.tile(
-                        np.array([0, -0.2, 0, 0.3]),
                         (
-                            sample_size - int(sample_size / 1.8),
+                            sample_size - int(sample_size / 2),
                             1,
                         ),
                     ),
@@ -178,7 +143,7 @@ def main():
                 }
 
                 models = {
-                    ff: RobustBayesianLinearRegression(
+                    ff: OnlineBayesianLinearRegression(
                         regularization=regularization,
                         noise_variance=noise_variance,
                         forgetting=ff,
@@ -214,13 +179,7 @@ def main():
     plot_coefficients(
         experiments,
         results,
-        [
-            0.98,
-            # 0.998,
-            # 0.999,
-            0.9995,
-            0.99999,
-        ],
+        [0.94, 0.995, 0.99999],
         agent=2,
         savedir=savedir,
     )

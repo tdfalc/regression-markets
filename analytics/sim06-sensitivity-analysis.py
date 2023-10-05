@@ -234,8 +234,8 @@ def plot_sample_size_sensitivity(
 
         custom_lines.append(Line2D([0], [0], color=color, lw=1.6))
 
-    ax1.set_ylabel("Revenue (USD)")
-    ax2.set_ylabel("Revenue (USD)")
+    ax1.set_ylabel("Revenue (EUR)")
+    ax2.set_ylabel("Revenue (EUR)")
 
     for i, ax in enumerate((ax1, ax2)):
         ax.set_xlabel("Sample Size")
@@ -308,7 +308,7 @@ def plot_coefficient_magnitude_sensitivity(
 
     for i, ax in enumerate((ax1, ax2)):
         ax.set_xlabel("$w_2$")
-        ax.set_ylabel("Revenue (USD)")
+        ax.set_ylabel("Revenue (EUR)")
         ax.axhline(y=0, lw=1, c="gray")
         ax.ticklabel_format(
             axis="y", style="scientific", scilimits=(1, 0), useMathText=True

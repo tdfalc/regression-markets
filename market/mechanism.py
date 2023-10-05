@@ -3,6 +3,7 @@ from typing import Type, Dict
 import numpy as np
 from tqdm import tqdm
 from joblib import Parallel, delayed
+from scipy import stats
 
 from market import data
 from market.policy import SemivaluePolicy
@@ -42,7 +43,9 @@ class Market:
 
     def _precalculate_posteriors(self, X: np.ndarray, y: np.ndarray):
         num_features = X.shape[1]
-        for indices in chain_combinations(np.arange(num_features), 1, num_features):
+        for indices in chain_combinations(
+            np.arange(num_features), 1, num_features
+        ):
             self.regression_task.update_posterior(X, y, indices)
 
 
@@ -113,14 +116,6 @@ class OnlineMarket(Market):
             "loss_buyer": np.zeros((self.num_runs, 1)),
         }
 
-    # def _run(self, X: np.ndarray, y: np.ndarray, policy: Type[SemivaluePolicy]):
-    #     return policy(
-    #         self.market_data.active_agents,
-    #         self.market_data.baseline_agents,
-    #         self.market_data.degree,
-    #         self.regression_task,
-    #     ).run(X, y, 1)
-
     def _run(
         self,
         X: np.ndarray,
@@ -137,16 +132,16 @@ class OnlineMarket(Market):
         ).run(X, y, payment)
 
     def run(self, policy: Type[SemivaluePolicy], verbose: bool = False):
-        from scipy import stats
-
         results = {
             "train": self._init_empty_results(),
             "test": self._init_empty_results(),
         }
-        # for i, (X_train, X_test, y_train, y_test) in enumerate(zip(self.X[:-1], self.X[1:], self.y[:-1], self.y[1:])):
+
         indices = range(self.num_runs)
         iterator = (
-            tqdm(indices, desc="Running market", unit="item") if verbose else indices
+            tqdm(indices, desc="Running market", unit="item")
+            if verbose
+            else indices
         )
 
         for i in iterator:
@@ -161,50 +156,10 @@ class OnlineMarket(Market):
                     output = self._run(X, y, payment, policy)
                     indices = np.array([0, 1])
 
-                    if self.observational:
-                        output["loss_buyer"] = self.regression_task.calculate_loss(
-                            X[:, [0, 1]],
-                            y,
-                            self.regression_task.get_posterior(indices),
-                            self.regression_task.get_noise_variance(indices),
-                        )
-                        indices = np.arange(X.shape[1])
-                        output["loss_gc"] = self.regression_task.calculate_loss(
-                            X,
-                            y,
-                            self.regression_task.get_posterior(indices),
-                            self.regression_task.get_noise_variance(indices),
-                        )
-
-                    else:
-                        posterior = self.regression_task.get_posterior(
-                            np.arange(X.shape[1])
-                        )
-                        mean = posterior.mean[np.sort(indices)]
-                        cov = posterior.cov[:, np.sort(indices)][np.sort(indices), :]
-
-                        posterior_buyer = stats.multivariate_normal(mean, cov)
-
-                        output["loss_buyer"] = self.regression_task.calculate_loss(
-                            X[:, [0, 1]],
-                            y,
-                            posterior_buyer,
-                            self.regression_task.get_noise_variance(indices),
-                        )
-                        indices = np.arange(X.shape[1])
-                        output["loss_gc"] = self.regression_task.calculate_loss(
-                            X,
-                            y,
-                            posterior,
-                            self.regression_task.get_noise_variance(indices),
-                        )
-
                     for attribute in (
                         "contributions",
                         "allocations",
                         "payments",
-                        "loss_gc",
-                        "loss_buyer",
                     ):
                         results[key][attribute][i, :] = (
                             output[attribute] * (1 - self.likelihood_flattening)

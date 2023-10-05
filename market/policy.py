@@ -99,11 +99,11 @@ class SemivaluePolicy:
             results["allocations"] = self._allocation(X, y, contributions)
             results["contributions"] = contributions
             results["payments"] = contributions * len(X) * payment
-            results["loss_gc"] = self._value(X, y, np.arange(X.shape[1]))
+            # results["loss_gc"] = self._value(X, y, np.arange(X.shape[1]))
 
-            results["loss_buyer"] = self._value(
-                X, y, np.arange(self.num_baseline_agents)
-            )
+            # results["loss_buyer"] = self._value(
+            #     X, y, np.arange(self.num_baseline_agents)
+            # )
         return results
 
 
@@ -170,9 +170,6 @@ class NllShapleyPolicy(ShapleyPolicy):
     def _coalition_noise_variance(self, indices: List) -> np.ndarray:
         if self.observational:
             return self.regression_task.get_noise_variance(np.sort(indices))
-        # return self.regression_task.get_noise_variance(
-        #     np.arange(self.num_agents)
-        # )
         return self.regression_task.get_noise_variance(np.sort(indices))
 
 

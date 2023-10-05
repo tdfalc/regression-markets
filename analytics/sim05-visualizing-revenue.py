@@ -121,8 +121,8 @@ def plot_results(
             axins = ax.inset_axes(axins_loc)
             axins_xmin, axins_xmax = np.inf, -np.inf
             axins_ymin, axins_ymax = np.inf, -np.inf
-        ax.set_ylabel("Expeceted Value (USD)")
-        ax.set_xlabel("Expected Shortfall (USD)")
+        ax.set_ylabel("Expeceted Value (EUR)")
+        ax.set_xlabel("Expected Shortfall (EUR)")
         ax.set_xscale("symlog", linthresh=1e-2)
         ax.set_yscale("symlog", linthresh=1e-1)
         ax.axvline(x=0, color="gray", lw=1)

@@ -12,7 +12,7 @@ from functools import partial
 
 from common.log import create_logger
 from common.utils import cache, tqdm_joblib
-from market.task import RobustBayesianLinearRegression
+from market.task import OnlineBayesianLinearRegression
 from market.data import MarketData
 from market.mechanism import OnlineMarket
 from analytics.helpers import (
@@ -157,18 +157,18 @@ def plot_metric_boostrap(results, savedir, idx):
                     lw=1.6,
                     label=market_design.value if seller == 0 else None,
                 )
-                ax.plot(
-                    num_runs,
-                    es_mean.cumsum(),
-                    color=color,
-                    ls="--",
-                    lw=1.6,
-                )
+                # ax.plot(
+                #     num_runs,
+                #     es_mean.cumsum(),
+                #     color=color,
+                #     ls="--",
+                #     lw=1.6,
+                # )
                 ax.yaxis.set_tick_params(labelbottom=True)
-                ax.set_ylabel("Revenue (USD)")
+                ax.set_ylabel("Revenue (EUR)")
                 ax.set_xlabel("Time Step")
 
-    ax1.legend(framealpha=0)
+    ax1.legend(framealpha=0, ncol=1)
 
     save_figure(fig, savedir, "contributions_risk")
 
@@ -181,26 +181,13 @@ def main():
     os.makedirs(savedir, exist_ok=True)
 
     config = {
-        "num_simulations": 50,
+        "num_simulations": 1000,
         "noise_variance": 1,
-        "train_payment": 0.9,
-        "test_payment": 1.1,
+        "train_payment": 0.95,
+        "test_payment": 0.95,
         "regularization": 1e-5,
         "sample_size": 1000,
-        "forgetting_factors": [
-            # 0.95,
-            # 0.93,
-            # 0.94,
-            0.94,
-            0.95,
-            0.96,
-            0.98,
-            # 0.99
-            # 0.995,
-            # # 0.998,
-            # # 0.9985,
-            # 0.99999999,
-        ],
+        "forgetting_factors": [0.94],
         "burn_in": 10,
     }
 
@@ -210,17 +197,13 @@ def main():
         "step_change": np.concatenate(
             (
                 np.tile(
-                    np.array([0, -0.2, 0.6, 0.3]),
-                    (int(sample_size / 3), 1),
-                ),
-                # np.tile(
-                #     np.array([0, -0.2, 0, 0.3]),
-                #     (int(sample_size / 1.8) - int(sample_size / 2.2), 1),
-                # ),
-                np.tile(
                     np.array([0, -0.2, 0.1, 0.3]),
+                    (int(sample_size / 2), 1),
+                ),
+                np.tile(
+                    np.array([0, -0.2, 0.6, 0.3]),
                     (
-                        sample_size - int(sample_size / 3),
+                        sample_size - int(sample_size / 2),
                         1,
                     ),
                 ),
@@ -281,7 +264,7 @@ def main():
             ):
                 market_designs = {
                     MarketDesigns.blr_nll: {
-                        "task": RobustBayesianLinearRegression,
+                        "task": OnlineBayesianLinearRegression,
                         "kwargs": {
                             "noise_variance": noise_variance,
                             "forgetting": forgetting_factor,
@@ -291,7 +274,7 @@ def main():
                         "policy": NllShapleyPolicy,
                     },
                     MarketDesigns.blr_kld_c: {
-                        "task": RobustBayesianLinearRegression,
+                        "task": OnlineBayesianLinearRegression,
                         "kwargs": {
                             "noise_variance": noise_variance,
                             "forgetting": forgetting_factor,
@@ -301,7 +284,7 @@ def main():
                         "policy": KldCfModShapleyPolicy,
                     },
                     MarketDesigns.blr_kld_m: {
-                        "task": RobustBayesianLinearRegression,
+                        "task": OnlineBayesianLinearRegression,
                         "kwargs": {
                             "noise_variance": noise_variance,
                             "forgetting": forgetting_factor,

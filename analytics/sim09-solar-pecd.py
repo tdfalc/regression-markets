@@ -1,43 +1,30 @@
 from pathlib import Path
 import os
-from typing import Callable, Sequence, Dict
+from typing import Sequence, Dict
 from collections import defaultdict
-from itertools import cycle
 from datetime import datetime as dt
 
 from matplotlib import pyplot as plt
 import numpy as np
-from tqdm import tqdm
-from joblib import Parallel, delayed
-from functools import partial
 import pandas as pd
 import pytz
 import matplotlib.dates as mdates
 from matplotlib.ticker import MaxNLocator
 from scipy.ndimage import gaussian_filter
-
-from common.log import create_logger
-from common.utils import cache, tqdm_joblib
-from market.task import (
-    BayesianLinearRegression,
-    MaximumLikelihoodLinearRegression,
-    RobustBayesianLinearRegression,
-)
-from market.data import MarketData, BatchData
-from market.mechanism import OnlineMarket, BatchMarket
-from analytics.helpers import (
-    save_figure,
-    build_input,
-    nested_defaultdict,
-    bootstrap_resample,
-    conditional_value_at_risk,
-    classic_colors,
-)
-from market.policy import NllShapleyPolicy
-
 import numpy as np
 from scipy.ndimage import gaussian_filter
 import matplotlib.pyplot as plt
+
+from common.log import create_logger
+from common.utils import cache
+from market.task import (
+    MaximumLikelihoodLinearRegression,
+    OnlineBayesianLinearRegression,
+)
+from market.data import MarketData, BatchData
+from market.mechanism import OnlineMarket
+from analytics.helpers import save_figure, classic_colors
+from market.policy import NllShapleyPolicy
 
 
 def process_raw_data(
@@ -261,7 +248,7 @@ def main():
 
         market = OnlineMarket(
             market_data,
-            regression_task=RobustBayesianLinearRegression(
+            regression_task=OnlineBayesianLinearRegression(
                 regularization=1e-5,
                 forgetting=forgetting,
                 noise_variance=noise_variance_mle(batch_data),

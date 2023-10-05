@@ -38,12 +38,9 @@ class Task:
             X, posterior, noise_variance
         )
         predictive_sdev = predictive_variance**0.5
-        return (
-            -stats.norm.logpdf(
-                y, loc=predictive_mean, scale=predictive_sdev
-            ).mean()
-            # * 2
-        )
+        return -stats.norm.logpdf(
+            y, loc=predictive_mean, scale=predictive_sdev
+        ).mean()
 
     def _predictive_mean(
         self, X: np.ndarray, posterior: mvn_frozen
@@ -87,7 +84,7 @@ class MaximumLikelihoodLinearRegression(Task):
     ):
         # Since the posterior distribution is Gaussian, it's mode coincides with
         # its mean. Therefore by setting the posterior mean to the maximum likelihood
-        # esimate and the posterior covariance to a zero matrix, we can obtain the
+        # estimate and the posterior covariance to a zero matrix, we can obtain the
         # maximum likelihood predictive distribution using the same analytical method
         # of integration.
         X, y = np.atleast_2d(X)[:, indices].copy(), np.atleast_2d(y).copy()
@@ -160,7 +157,7 @@ class BayesianLinearRegression(Task):
         self._update_posterior_coefficients(X, y, indices)
 
 
-class RobustBayesianLinearRegression(BayesianLinearRegression):
+class OnlineBayesianLinearRegression(BayesianLinearRegression):
     def __init__(
         self,
         regularization: float,
