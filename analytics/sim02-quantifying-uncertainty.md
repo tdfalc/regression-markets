@@ -6,6 +6,6 @@ For the simple linear regression case as described in `sim01-visualizing-uncerta
 ## 2. Results
 The leftmost column presents the progressive evolution of the posterior density as the sample size increases. In the middle column, random weight samples are drawn from the posterior distribution, and the associated regression lines are plotted in red. The black dashed line represents the regression line determined by the *true* parameters, while the noisy training data is represented by black dots. In the rightmost column, both the mean and standard deviation of the posterior predictive distribution are displayed alongside the true model and the training data
 
-Observing the figures, it is evident that the posterior density in the first column becomes more tightly concentrated as the dataset size increases, indicating a decrease in sample variance in the second column and a subsequent reduction in prediction uncertainty as demonstrated in the third column. Additionally, it is noteworthy that prediction uncertainty is more pronounced in regions with fewer observations.
+Observing the figures, we see that the posterior density in the first column becomes more tightly concentrated as the dataset size increases, indicating a decrease in sample variance in the second column and a subsequent reduction in prediction uncertainty as demonstrated in the third column. Additionally, we can clearly see that prediction uncertainty is more pronounced in regions with fewer observations.
 
 ![](./docs/sim02-quantifying-uncertainty/bayesian_updates.png)

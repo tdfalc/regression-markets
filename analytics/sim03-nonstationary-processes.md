@@ -11,6 +11,4 @@ We plot the time-varying empirical mean parameter estimates obtained by running 
 
 In practice, $\tau$ is usually set to a value close to $1$, reflecting the fact that our beliefs often decay gradually. Observe that, as $\tau \mapsto 1$, the prior information available at time $t$ becomes identical to the posterior at time $t − 1$, whereas when $\tau = 0$, all of the previous information is forgotten and we resort to the original prior. For simplicity, we treat $τ$ as a time-invariant hyperparameter, however for a full Bayesian treatment one could also infer its value jointly, together with the other parameters.
 
-![](./docs/sim03-nonstationary-processes/step_nonstationarity.png)  
-![](./docs/sim03-nonstationary-processes/nonlinear_nonstationarity.png)  
-![](./docs/sim03-nonstationary-processes/linear_nonstationarity.png)  
+![](./docs/sim03-nonstationary-processes/estimated_coefficients.png)  

@@ -14,7 +14,7 @@ from market.task import (
     MaximumLikelihoodLinearRegression,
     Task,
 )
-from analytics.helpers import set_plot_style, save_figure, add_dummy
+from analytics.helpers import save_figure, add_dummy
 from common.log import create_logger
 from common.utils import tqdm_joblib, cache
 
@@ -88,7 +88,7 @@ def run_experiment(
                 noise_variance=noise_variance,
             )
 
-            results[title].append((1 + nll_blr.mean()) / (1 + nll_mle.mean()))
+            results[title].append((nll_blr.mean()) / (nll_mle.mean()))
 
     return results
 
@@ -97,12 +97,10 @@ def main():
     logger = create_logger(__name__)
     logger.info("Running negative log likelihood ratio analysis")
 
-    set_plot_style()
-
     savedir = Path(__file__).parent / "docs/sim04-negative-log-likelihood-ratio"
     os.makedirs(savedir, exist_ok=True)
 
-    set_plot_style()
+    markers = cycle(["o", "d", ">", "s"])
 
     coefficients = np.array([[-0.1], [0.3], [0.8], [-0.4]])
     noise_variance = 2
@@ -165,7 +163,7 @@ def main():
         },
     }
 
-    fig, ax = plt.subplots(figsize=(4, 3))
+    fig, ax = plt.subplots(figsize=(4, 3.2))
 
     cache_location = savedir / "cache"
     os.makedirs(cache_location, exist_ok=True)
@@ -185,15 +183,20 @@ def main():
             sample_sizes,
             data * 100,
             label=name,
-            markerfacecolor="None",
-            lw=1.6,
+            color="k",
+            marker=next(markers),
+            markeredgecolor="k",
+            markeredgewidth=0.8,
+            lw=1,
+            markerfacecolor="White",
         )
 
-    ax.legend()
+    ax.legend(framealpha=0)
     ax.set_ylabel("Performance Enhancement (%)")
     ax.set_xlabel("Sample Size")
     ax.set_xscale("log")
 
+    fig.subplots_adjust(wspace=10)
     save_figure(fig, savedir, "nll_ratio")
 
 

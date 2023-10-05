@@ -42,7 +42,7 @@ class Task:
             -stats.norm.logpdf(
                 y, loc=predictive_mean, scale=predictive_sdev
             ).mean()
-            * 2
+            # * 2
         )
 
     def _predictive_mean(
