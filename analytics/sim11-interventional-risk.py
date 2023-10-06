@@ -142,8 +142,6 @@ def run_experiment(
             regularization=regularization,
             test_frac=test_frac,
         )
-        risk_obs.append(-np.quantile(allocations_obs, q=0.05, axis=0))
-        risk_int.append(-np.quantile(allocations_int, q=0.05, axis=0))
 
         risk_obs.append(
             conditional_value_at_risk(allocations_obs, alpha=0.05, axis=0)
