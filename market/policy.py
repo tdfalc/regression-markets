@@ -99,11 +99,6 @@ class SemivaluePolicy:
             results["allocations"] = self._allocation(X, y, contributions)
             results["contributions"] = contributions
             results["payments"] = contributions * len(X) * payment
-            # results["loss_gc"] = self._value(X, y, np.arange(X.shape[1]))
-
-            # results["loss_buyer"] = self._value(
-            #     X, y, np.arange(self.num_baseline_agents)
-            # )
         return results
 
 
