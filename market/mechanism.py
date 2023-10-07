@@ -1,9 +1,7 @@
-from typing import Type, Dict
+from typing import Type
 
 import numpy as np
 from tqdm import tqdm
-from joblib import Parallel, delayed
-from scipy import stats
 
 from market import data
 from market.policy import SemivaluePolicy
@@ -112,8 +110,6 @@ class OnlineMarket(Market):
             "allocations": np.zeros((self.num_runs, self.num_active_agents)),
             "contributions": np.zeros((self.num_runs, self.num_active_agents)),
             "payments": np.zeros((self.num_runs, self.num_active_agents)),
-            "loss_gc": np.zeros((self.num_runs, 1)),
-            "loss_buyer": np.zeros((self.num_runs, 1)),
         }
 
     def _run(

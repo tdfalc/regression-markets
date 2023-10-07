@@ -4,10 +4,7 @@ import numpy as np
 from scipy import stats
 
 from market.task import Task
-from common.utils import (
-    chain_combinations,
-    safe_divide,
-)
+from common.utils import chain_combinations, safe_divide
 from common.objective import expected_kl_divergence_univariate_normal
 
 
