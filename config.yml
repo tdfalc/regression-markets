@@ -1,8 +1,0 @@
-GENERAL:
-  case: case0
-  directory: ./cases/docs/
-
-PLOTS:
-  dpi: 100
-
-  
