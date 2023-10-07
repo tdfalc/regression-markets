@@ -20,7 +20,7 @@ from analytics.helpers import (
     build_data,
     conditional_value_at_risk,
     bootstrap_resample,
-    classic_colors,
+    get_julia_colors,
     MarketDesigns,
 )
 from market.data import BatchData
@@ -109,7 +109,8 @@ def plot_shapley_convergence(
         1, 2, figsize=(5.7, 2.5), sharex=True, sharey=False
     )
 
-    colors = cycle(classic_colors()[0:4])
+    julia_colors = get_julia_colors()
+    colors = cycle([julia_colors[1], julia_colors[2], julia_colors[0]])
     line_styles = cycle(["-", "--"])
 
     custom_lines = []
@@ -179,7 +180,9 @@ def plot_sample_size_sensitivity(
         1, 2, figsize=(5.7, 2.65), sharex=True, sharey=True
     )
 
-    colors = cycle(classic_colors()[1:4])
+    julia_colors = get_julia_colors()
+    colors = cycle([julia_colors[1], julia_colors[2], julia_colors[0]])
+
     line_styles = cycle(["-", "--"])
 
     custom_lines = []
@@ -267,7 +270,8 @@ def plot_coefficient_magnitude_sensitivity(
     fig, (ax1, ax2) = plt.subplots(
         1, 2, figsize=(5.7, 2.65), sharex=True, sharey=True
     )
-    colors = cycle(classic_colors()[1:4])
+    julia_colors = get_julia_colors()
+    colors = cycle([julia_colors[1], julia_colors[2], julia_colors[0]])
 
     custom_lines = []
     for market_design in market_designs:

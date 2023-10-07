@@ -24,7 +24,7 @@ from market.task import (
 )
 from market.data import MarketData, BatchData
 from market.mechanism import OnlineMarket
-from analytics.helpers import save_figure, classic_colors
+from analytics.helpers import save_figure, get_julia_colors
 from market.policy import NllShapleyPolicy
 
 
@@ -209,7 +209,7 @@ def main():
     forgetting = 0.998
     results = defaultdict(dict)
 
-    colors = classic_colors()
+    colors = get_julia_colors()
     color_map = {i: colors[i] for i in range(6)}
 
     target_signals = []

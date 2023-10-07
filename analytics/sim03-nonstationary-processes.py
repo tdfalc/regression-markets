@@ -1,22 +1,18 @@
 from pathlib import Path
-from typing import Sequence, Any
+from typing import Sequence
 import os
 from itertools import cycle
 
 from joblib import Parallel, delayed
 import numpy as np
-from matplotlib import cm
-import matplotlib as mpl
 from matplotlib import pyplot as plt
 from tqdm import tqdm
-from mpl_toolkits.axes_grid1.inset_locator import inset_axes
-from mpl_toolkits.axes_grid1.inset_locator import InsetPosition
-from matplotlib.ticker import MaxNLocator
+
 
 from market.task import OnlineBayesianLinearRegression
 from common.log import create_logger
 from common.utils import cache, tqdm_joblib
-from analytics.helpers import save_figure, classic_colors
+from analytics.helpers import save_figure, get_julia_colors
 
 
 def sample_input(num_features: int) -> np.ndarray:
@@ -43,8 +39,7 @@ def plot_coefficients(
     fig, axs = plt.subplots(
         1, len(experiments), sharey=True, figsize=(5.7, 2.5)
     )
-    line_styles = cycle(["solid", "dashed", "dotted"])
-    colors = cycle(classic_colors()[4:])
+    colors = cycle(get_julia_colors()[5:8])
 
     for i, ((experiment_title, experiment_config), ax) in enumerate(
         zip(experiments.items(), axs.flatten())
@@ -76,7 +71,6 @@ def plot_coefficients(
             axis="x", style="scientific", scilimits=(0, 0), useMathText=True
         )
         ax.set_xlabel("Time Step")
-        # ax.yaxis.set_tick_params(labelbottom=True)
 
     save_figure(fig, savedir, f"estimated_coefficients")
 

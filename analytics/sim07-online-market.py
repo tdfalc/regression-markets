@@ -22,7 +22,7 @@ from analytics.helpers import (
     bootstrap_resample,
     conditional_value_at_risk,
     MarketDesigns,
-    classic_colors,
+    get_julia_colors,
 )
 from market.policy import (
     NllShapleyPolicy,
@@ -125,7 +125,9 @@ def plot_coefficients(coefficients: np.ndarray, savedir):
 def plot_metric_boostrap(results, savedir, idx):
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(5.7, 2.65), sharey=True)
 
-    colors = cycle(classic_colors()[1:4])
+    julia_colors = get_julia_colors()
+    colors = cycle([julia_colors[1], julia_colors[2], julia_colors[0]])
+
     metric = "payments"
     for ax, stage in zip((ax1, ax2), ("train", "test")):
         ax.ticklabel_format(
@@ -156,14 +158,9 @@ def plot_metric_boostrap(results, savedir, idx):
                     ls="-",
                     lw=1.6,
                     label=market_design.value if seller == 0 else None,
+                    zorder=1,
                 )
-                # ax.plot(
-                #     num_runs,
-                #     es_mean.cumsum(),
-                #     color=color,
-                #     ls="--",
-                #     lw=1.6,
-                # )
+                ax.axhline(y=0, c="gray", zorder=0)
                 ax.yaxis.set_tick_params(labelbottom=True)
                 ax.set_ylabel("Revenue (EUR)")
                 ax.set_xlabel("Time Step")

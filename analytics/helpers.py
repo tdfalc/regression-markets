@@ -28,15 +28,15 @@ def add_dummy(X: np.ndarray):
     return np.concatenate([np.ones((X.shape[0], 1)), X], axis=1)
 
 
-def classic_colors():
+def get_classic_colors():
     return ["k", "r", "g", "b", "c", "m", "y"]
 
 
-def pyplot_colors():
+def get_pyplot_colors():
     return [f"C{i}" for i in range(10)]
 
 
-def ggplot_colors():
+def get_ggplot_colors():
     return [
         "#F8766D",
         "#9590FF",
@@ -50,7 +50,7 @@ def ggplot_colors():
     ]
 
 
-def julia_colors():
+def get_julia_colors():
     return [
         "#009AFA",
         "#E36F47",

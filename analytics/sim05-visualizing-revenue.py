@@ -23,7 +23,7 @@ from analytics.helpers import (
     conditional_value_at_risk,
     bootstrap_resample,
     MarketDesigns,
-    classic_colors,
+    get_julia_colors,
 )
 from market.data import BatchData
 from market.policy import (
@@ -111,7 +111,10 @@ def plot_results(
     axins_loc: Sequence,
     savedir: Path,
 ):
-    colors = cycle(classic_colors()[:4])
+    julia_colors = get_julia_colors()
+    colors = cycle(
+        [julia_colors[4], julia_colors[1], julia_colors[2], julia_colors[0]]
+    )
     markers = cycle(["o", "d", ">", "s"])
 
     fig, axs = plt.subplots(1, 2, figsize=(6, 2.5), sharex=True, sharey=True)
