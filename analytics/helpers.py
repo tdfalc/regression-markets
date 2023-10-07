@@ -50,6 +50,20 @@ def ggplot_colors():
     ]
 
 
+def julia_colors():
+    return [
+        "#009AFA",
+        "#E36F47",
+        "#3DA44E",
+        "#C371D2",
+        "#AC8E17",
+        "#05AAAE",
+        "#ED5E93",
+        "#C68225",
+        "#01A98D",
+    ]
+
+
 def nested_defaultdict(levels: int, default_factory: Any):
     if levels == 1:
         return defaultdict(default_factory)

@@ -13,7 +13,7 @@ from market.task import BayesianLinearRegression
 from market.mechanism import BatchMarket
 from market.policy import NllShapleyPolicy
 from common.log import create_logger
-from analytics.helpers import save_figure, ggplot_colors
+from analytics.helpers import save_figure, julia_colors
 
 
 def build_market_data(
@@ -152,9 +152,9 @@ def plot_results(
         }
     )
 
-    fig, ax = plt.subplots(dpi=600, figsize=(3.6, 3))
+    fig, ax = plt.subplots(dpi=600, figsize=(3.6, 3.2))
 
-    colors = cycle(ggplot_colors())
+    colors = cycle([julia_colors()[7]] + julia_colors()[5:])
     for i, col in enumerate(means.columns):
         ax.bar(
             np.arange(2) + i * 0.2,

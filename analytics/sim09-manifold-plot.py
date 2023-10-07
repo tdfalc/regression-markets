@@ -7,17 +7,17 @@ from matplotlib import pyplot as plt
 from scipy import stats
 
 from common.log import create_logger
-from analytics.helpers import save_figure, ggplot_colors
+from analytics.helpers import save_figure, julia_colors
 
 
 def plot_manifold(savedir: Path):
     rhos = [0, 0.9]
-    colors = cycle(ggplot_colors()[:])
+    colors = cycle(julia_colors()[:])
 
     vmin, vmax = -3, 3
     resolution = 100
 
-    fig, ax = plt.subplots(figsize=(3.6, 3), dpi=600)
+    fig, ax = plt.subplots(figsize=(3.6, 3.2), dpi=600)
 
     for i, rho in enumerate(rhos):
         mean = np.zeros(2)
@@ -33,7 +33,9 @@ def plot_manifold(savedir: Path):
         color = next(colors)
 
         num_levels = 10
-        contour = ax.contour(XX, YY, ZZ, colors=color, levels=num_levels)
+        contour = ax.contour(
+            XX, YY, ZZ, colors=color, levels=num_levels, linewidths=2
+        )
         contour_levels = contour.collections
 
         # Display only the outermost contour level
@@ -49,8 +51,10 @@ def plot_manifold(savedir: Path):
             )
 
     color = next(colors)
-    ax.plot([lower, upper], [0, 0], c=color, label="$do(X_1 = x_1)$")
-    ax.plot([0, 0], [lower, upper], c=color, label="$do(X_2 = x_2)$", ls="--")
+    ax.plot([lower, upper], [0, 0], c=color, label="$do(X_1 = x_1)$", lw=2)
+    ax.plot(
+        [0, 0], [lower, upper], c=color, label="$do(X_2 = x_2)$", ls="--", lw=2
+    )
     ax.legend(loc="upper left")
     ax.set_xlabel("$x_1$")
     ax.set_ylabel("$x_2$")

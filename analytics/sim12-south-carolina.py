@@ -19,7 +19,7 @@ from market.task import (
 from market.policy import NllShapleyPolicy
 from market.mechanism import BatchMarket
 from common.log import create_logger
-from analytics.helpers import save_figure, ggplot_colors
+from analytics.helpers import save_figure, julia_colors
 from common.utils import cache
 
 
@@ -114,7 +114,7 @@ def plot_map(
         locations, geometry=geometry, crs=gdf_shapefile.crs
     )
     gdf_points["correlation"] = raw_data.corr()["a1"].values
-    gdf_points["colors"] = ggplot_colors()[:9]
+    gdf_points["colors"] = julia_colors()[:9]
     gdf_points = gdf_points.sort_values(by="correlation")
 
     normalized_correlation = 0.1 + (
@@ -122,7 +122,7 @@ def plot_map(
     ) / (gdf_points["correlation"].max() - gdf_points["correlation"].min())
     marker_size = [value * 500 for value in normalized_correlation]
 
-    fig, ax = plt.subplots(dpi=600, figsize=(3.6, 3))
+    fig, ax = plt.subplots(dpi=600, figsize=(3.6, 3.2))
     gdf_shapefile.plot(ax=ax, color="whitesmoke", edgecolor="gray", alpha=1)
     gdf_points.plot(
         ax=ax, c=gdf_points["colors"], markersize=marker_size, edgecolor="k"
@@ -179,8 +179,8 @@ def plot_acf(agents: Sequence, savedir):
             [1] + [np.corrcoef(x[:-i], x[i:])[0, 1] for i in range(1, length)]
         )
 
-    fig, ax = plt.subplots(dpi=600, figsize=(3.6, 3))
-    colors = ggplot_colors()[:9]
+    fig, ax = plt.subplots(dpi=600, figsize=(3.6, 3.2))
+    colors = julia_colors()[:9]
 
     for i, wf in enumerate(agents):
         ax.plot(acf(raw_data[wf], length=50), c=colors[i], label=wf)
@@ -196,10 +196,10 @@ def plot_results(results: Dict, max_replications: int, savedir: Path):
     bar_width = 0.2
     metric = "allocations"
     hatches = ("//", "..")
-    colors = ggplot_colors()[:2]
+    colors = julia_colors()[:2]
 
     for market_type in ("obs", "int"):
-        fig, ax = plt.subplots(figsize=(3.6, 3), dpi=300)
+        fig, ax = plt.subplots(figsize=(3.6, 3.2), dpi=300)
 
         for stage, hatch, color in zip(("train", "test"), hatches, colors):
 
@@ -232,16 +232,6 @@ def plot_results(results: Dict, max_replications: int, savedir: Path):
                 edgecolor="k",
                 hatch=hatch,
             )
-            ax.bar(
-                (positions + 0.5 * bar_width)[0]
-                if stage == "train"
-                else (positions + 1.5 * bar_width)[0],
-                allocations_after_agg[0],
-                bar_width,
-                color=color,
-                edgecolor="k",
-                hatch=hatch,
-            )
 
             ax.bar(
                 (positions - 1.5 * bar_width)[1:]
@@ -268,7 +258,9 @@ def plot_results(results: Dict, max_replications: int, savedir: Path):
             # Now we stack bars for replicates
             if market_type == "obs":
                 bottom = 0
-                for replicate in list(range(max_replications + 1))[::-1]:
+                for i, replicate in enumerate(
+                    list(range(max_replications + 1))[::-1]
+                ):
                     heights = np.zeros(len(allocations_before))
                     heights[0] = allocations_after[replicate]
                     ax.bar(
@@ -281,14 +273,36 @@ def plot_results(results: Dict, max_replications: int, savedir: Path):
                         edgecolor="k",
                         bottom=bottom,
                         hatch=hatch,
+                        alpha=0.7 if i > 0 else 1
+                        # lw=2,
                     )
                     bottom += heights[0]
 
-        legend_elements = [
-            Patch(facecolor=colors[0], edgecolor="k", label="w/. Honest"),
-            Patch(facecolor=colors[1], edgecolor="k", label="w/. Malicious"),
-        ]
-        ax.legend(handles=legend_elements, fancybox=False, edgecolor="white")
+                legend_elements = [
+                    Patch(
+                        facecolor=colors[0], edgecolor="k", label="w/. Honest"
+                    ),
+                    Patch(
+                        facecolor=colors[1],
+                        edgecolor="k",
+                        label="w/. Malicious",
+                    ),
+                ]
+                ax.legend(
+                    handles=legend_elements, fancybox=False, edgecolor="white"
+                )
+
+            else:
+                ax.bar(
+                    (positions + 0.5 * bar_width)[0]
+                    if stage == "train"
+                    else (positions + 1.5 * bar_width)[0],
+                    allocations_after_agg[0],
+                    bar_width,
+                    color=color,
+                    edgecolor="k",
+                    hatch=hatch,
+                )
 
         ax.set_xlabel("Support Agent")
         ax.set_ylabel("Revenue Allocation (%)")

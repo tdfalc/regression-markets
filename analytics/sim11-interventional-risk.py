@@ -16,7 +16,7 @@ from market.policy import NllShapleyPolicy
 from common.log import create_logger
 from analytics.helpers import (
     save_figure,
-    ggplot_colors,
+    julia_colors,
     conditional_value_at_risk,
 )
 from common.utils import cache
@@ -159,8 +159,8 @@ def plot_results(
     risk_int: np.ndarray,
     savedir: Path,
 ):
-    fig, ax = plt.subplots(dpi=600, figsize=(3.6, 3))
-    colors = cycle(ggplot_colors())
+    fig, ax = plt.subplots(dpi=600, figsize=(3.6, 3.2))
+    colors = cycle(julia_colors()[5:])
 
     offset = 1
     ax.plot(
