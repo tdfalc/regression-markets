@@ -1,5 +1,12 @@
 # Regression Markets
 
+## v1 - Towards Bayesian regression markets
+ 
+Python implemention of [Bayesian Regression Markets](). 
+
+* Transition to Bayesian regression analyses.
+* Allocation policies based on both log-likelihood and KL divergence.
+
 ## v0 - Introducing regression markets
  
 Python implemention of [Regression markets and application to energy forecasting](https://link.springer.com/article/10.1007/s11750-022-00631-7). 
@@ -23,9 +30,3 @@ If you find this useful in your work, we kindly request that you cite the follow
     publisher={Springer},
 }
 ```
-## v1 - Towards Bayesian regression markets
- 
-Python implemention of [Bayesian Regression Markets](). 
-
-* Transition to Bayesian regression analyses.
-* Allocation policies based on both log-likelihood and KL divergence.
