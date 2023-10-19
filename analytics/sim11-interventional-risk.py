@@ -189,7 +189,7 @@ def plot_results(
 
 if __name__ == "__main__":
     logger = create_logger(__name__)
-    logger.info("Running model and data centric analysis")
+    logger.info("Running interventional risk analysis")
 
     savedir = Path(__file__).parent / "docs/sim11-interventional-risk"
     os.makedirs(savedir, exist_ok=True)

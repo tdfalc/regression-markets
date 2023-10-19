@@ -1,29 +1,41 @@
 from pathlib import Path
 import os
+from typing import Dict
 
 import numpy as np
 from matplotlib import cm
 import matplotlib as mpl
 from matplotlib import pyplot as plt
 from scipy.stats._multivariate import multivariate_normal_frozen as mvn_frozen
+from scipy import stats
 
 from market.task import BayesianLinearRegression
-from analytics.helpers import save_figure, add_dummy
+from market.data import BatchData
+from market.mechanism import BatchMarket
+from market.policy import NllShapleyPolicy
+from analytics.helpers import save_figure, add_dummy, get_julia_colors
 from common.log import create_logger
 
 
 def make_regression(
     coefficients: np.ndarray, noise_variance: float, sample_size: int
 ):
-    size = (sample_size, 1)
-    X = add_dummy(np.random.uniform(size=size) * 2 - 1)
-    noise = np.random.normal(scale=np.sqrt(noise_variance), size=size)
-    y = X @ coefficients + noise
+    X = add_dummy(
+        np.random.multivariate_normal(np.zeros(3), np.eye(3), size=sample_size)
+    )
+
+    # X = add_dummy(np.random.uniform(size=(sample_size, 3)) * 2 - 1)
+
+    y = X @ coefficients + np.random.normal(
+        scale=np.sqrt(noise_variance), size=(sample_size, 1)
+    )
     return X, y
 
 
 def plot_posterior(
-    ax: mpl.pyplot.axis, distribution: mvn_frozen, coefficients: np.ndarray
+    ax: mpl.axes._subplots.SubplotBase,
+    distribution: mvn_frozen,
+    coefficients: np.ndarray,
 ):
     resolution = 1000
     grid_x = grid_y = np.linspace(-1, 1, resolution)
@@ -31,57 +43,72 @@ def plot_posterior(
     densities = distribution.pdf(grid_flat).reshape(resolution, resolution)
     ax.imshow(
         densities[::-1, :],
-        cmap=cm.rainbow,
+        cmap=cm.rainbow,  # cm.jet
         aspect="auto",
         extent=(-1, 1, -1, 1),
     )
-    ax.axvline(x=coefficients[0], ls="--", c="black", lw=1)
-    ax.axhline(y=coefficients[1], ls="--", c="black", lw=1)
-    ax.set_xlabel(r"$w_0$")
-    ax.set_ylabel(r"$w_1$")
+    ax.axvline(x=coefficients[2], ls="--", c="black", lw=1)
+    ax.axhline(y=coefficients[3], ls="--", c="black", lw=1)
+    ax.set_xlabel(r"$w_2$")
+    ax.set_ylabel(r"$w_3$")
     ax.set_xticks([-1, -0.5, 0, 0.5, 1])
 
 
-def plot_posterior_samples(
-    ax: mpl.pyplot.axis,
-    X: np.ndarray,
-    y: np.ndarray,
-    X_test: np.ndarray,
-    y_test: np.ndarray,
-    y_samples: np.ndarray,
-    num_samples: int,
-):
-    labels = ["Posterior Samples"] + [None] * (num_samples - 1)
-    ax.plot(X_test[:, 1], y_samples, c="C1", label=labels)
-    ax.plot(X_test[:, 1], y_test, c="k", ls="--", label="Ground Truth")
-    ax.scatter(X[:, 1], y, marker="o", c="k", s=20)
-    ax.set_xlabel(r"$x$")
-    ax.set_ylabel(r"$y$")
-    plt.legend()
-
-
 def plot_predictive_uncertainty(
-    ax: mpl.pyplot.axis,
-    X_test: np.ndarray,
+    ax: mpl.axes._subplots.SubplotBase,
     y_test: np.ndarray,
     y_pred_mean: np.ndarray,
     y_pred_variance: np.ndarray,
+    color: str = "C0",
+    alpha: float = 1,
+    label: str = None,
 ):
-    ax.plot(X_test[:, 1].ravel(), y_test.ravel(), c="k", ls="--")
-    ax.plot(X_test[:, 1], y_pred_mean.ravel(), c="red", label="Predictive Mean")
+    ax.hist(
+        -stats.norm.logpdf(
+            y_test,
+            loc=y_pred_mean,
+            scale=y_pred_variance**0.5,
+        ),
+        color=color,
+        alpha=alpha,
+        label=label,
+        # bins=30,
+    )
+    ax.set_xlabel("Objective")
+    ax.set_ylabel("Count")
+    if label is not None:
+        ax.legend(framealpha=0)
 
-    for num_sdevs in [1, 2]:
-        ax.fill_between(
-            X_test[:, 1].ravel(),
-            y_pred_mean.ravel() + num_sdevs * np.sqrt(y_pred_variance.ravel()),
-            y_pred_mean.ravel() - num_sdevs * np.sqrt(y_pred_variance.ravel()),
-            alpha=0.5,
-            color="C0",
-            label=f"±{num_sdevs}$\sigma$",
+
+def plot_payments(
+    ax: mpl.axes._subplots.SubplotBase,
+    market_output: Dict,
+    sample_size: int,
+    color: str,
+):
+    payments = market_output["train"]["payments"] / sample_size
+    for i in range(1, sample_size + 1):
+        ax.scatter(
+            [1, 2],
+            i * payments,
+            color=color,
+            marker="_",
+            lw=0.6,
+            s=700,
         )
-    ax.set_xlabel(r"$x$")
-    ax.set_ylabel(r"$y$")
-    ax.legend()
+        ax.scatter(
+            [0],
+            i * -payments.sum(),
+            color=color,
+            marker="_",
+            lw=0.6,
+            s=700,
+        )
+    ax.set_xticks([0, 1, 2])
+    ax.set_xlim([-0.5, 2.5])
+    ax.set_xticklabels(["Central\nAgent", "Owner\n$x_2$", "Owner\n$x_3$"])
+    ax.axhline(y=0, color="gray", zorder=0, alpha=0.6)
+    ax.set_ylabel("Revenue (EUR)")
 
 
 def main():
@@ -91,60 +118,92 @@ def main():
     savedir = Path(__file__).parent / "docs/sim02-quantifying-uncertainty"
     os.makedirs(savedir, exist_ok=True)
 
-    coefficients = np.array([[-0.3], [0.4]])
-    noise_variance = 0.04
-    regularization = 1
-    num_samples = 5
+    coefficients = np.array([[-0], [0.31], [0.08], [0.65]])
+    noise_variance = 0.81
+    regularization = 1e-6
+    test_size = 100
+
+    X, y = make_regression(coefficients, noise_variance, sample_size=100)
+    X_test, y_test = make_regression(coefficients, 0, sample_size=test_size)
 
     experiments = [
-        {"sample_size": 1},
-        {"sample_size": 3},
+        {"sample_size": 4},
+        {"sample_size": 10},
         {"sample_size": 40},
     ]
 
     fig = plt.figure(figsize=(8, 6.8))
+    julia_colors = get_julia_colors()
+
+    axs = np.empty((len(experiments), 3), dtype=mpl.axes._subplots.SubplotBase)
 
     for i, experiment in enumerate(experiments):
-        X, y = make_regression(coefficients, noise_variance, **experiment)
+        sample_size = experiment["sample_size"]
+
+        X_train, y_train = X[:sample_size], y[:sample_size]
         task = BayesianLinearRegression(
-            noise_variance=noise_variance, regularization=regularization
-        )
-        indicies = np.arange(X.shape[1])
-        task.update_posterior(X, y, indicies)
-        posterior = task.get_posterior(indicies)
-        posterior_samples = posterior.rvs(num_samples)
-
-        X_test = add_dummy(np.linspace(-1, 1, 100).reshape(-1, 1))
-        y_test = X_test @ coefficients
-        y_samples = X_test.dot(posterior_samples.T)
-        y_pred_mean, y_pred_variance = task._predict(
-            X_test, posterior, noise_variance
+            noise_variance=noise_variance,
+            regularization=regularization,
         )
 
-        ax1 = plt.subplot(len(experiments), 3, i * 3 + 1)
-        plot_posterior(ax1, posterior, coefficients)
+        indicies = np.arange(X_train.shape[1])
+        task.update_posterior(X_train, y_train, indicies)
+        posterior_grand_coalition = task.get_posterior(indicies)
 
-        ax2 = plt.subplot(len(experiments), 3, i * 3 + 2)
-        plot_posterior_samples(
-            ax2, X, y, X_test, y_test, y_samples, num_samples
+        posterior_support_agents = stats.multivariate_normal(
+            posterior_grand_coalition.mean[-2:],
+            posterior_grand_coalition.cov[:, -2:][-2:, :],
+        )
+        axs[i, 0] = plt.subplot(len(experiments), 3, i * 3 + 1)
+        plot_posterior(axs[i, 0], posterior_support_agents, coefficients)
+
+        task.update_posterior(X_train, y_train, [0, 1])
+        posterior_buyer = task.get_posterior([0, 1])
+
+        y_pred_grand_coalition = task._predict(
+            X_test, posterior_grand_coalition, noise_variance
+        )
+        y_pred_buyer = task._predict(
+            X_test[:, [0, 1]], posterior_buyer, noise_variance
         )
 
+        axs[i, 1] = plt.subplot(len(experiments), 3, i * 3 + 2)
         if i > 0:
-            ax2.get_shared_y_axes().join(ax2, ax3)
+            axs[i - 1, 1].get_shared_x_axes().join(axs[i, 1], axs[i - 1, 1])
+            axs[i - 1, 1].get_shared_y_axes().join(axs[i, 1], axs[i - 1, 1])
 
-        ax3 = plt.subplot(len(experiments), 3, i * 3 + 3)
-        plot_posterior_samples(
-            ax3, X, y, X_test, y_test, y_samples, num_samples
+        plot_predictive_uncertainty(
+            axs[i, 1],
+            y_test,
+            *y_pred_buyer,
+            color=julia_colors[-4],
+            alpha=0.6,
+            label="w/o. Market" if i == 0 else None,
         )
         plot_predictive_uncertainty(
-            ax3, X_test, y_test, y_pred_mean, y_pred_variance
+            axs[i, 1],
+            y_test,
+            *y_pred_grand_coalition,
+            color=julia_colors[-3],
+            label="w/. Market" if i == 0 else None,
         )
 
-        ax3.get_shared_y_axes().join(ax3, ax2)
+        axs[i, 2] = plt.subplot(len(experiments), 3, i * 3 + 3)
+        if i > 0:
+            axs[i - 1, 2].get_shared_y_axes().join(axs[i, 2], axs[i - 1, 2])
 
+        market_data = BatchData(
+            X_train[:, [0]], X_train[:, [1]], X_train[:, 2:], y_train
+        )
+        market_output = BatchMarket(market_data, task, train_payment=0.01).run(
+            NllShapleyPolicy
+        )
+        plot_payments(axs[i, 2], market_output, len(X_train), color="k")
+
+    fig.tight_layout()
     save_figure(fig, savedir, "bayesian_updates")
 
 
 if __name__ == "__main__":
-    np.random.seed(42)
+    np.random.seed(123)
     main()
