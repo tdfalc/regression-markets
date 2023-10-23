@@ -37,7 +37,7 @@ def plot_coefficients(
     burn_in: int = 50,
 ):
     fig, axs = plt.subplots(
-        1, len(experiments), sharey=True, figsize=(5.7, 2.5)
+        1, len(experiments), sharey=False, figsize=(5.7, 2.5)
     )
     colors = cycle(get_julia_colors()[5:8])
 
@@ -47,30 +47,34 @@ def plot_coefficients(
         estimated_coefficients = results[experiment_title]
         coefficients = experiment_config["coefficients"]
 
-        ax.plot(
-            coefficients[burn_in:, agent],
-            color="k",
-            lw=1.6,
-        )
-
         for ff in forgetting_factors:
             data = estimated_coefficients[ff][:, burn_in:, agent]
             ax.plot(
                 data.mean(axis=0),
                 zorder=2,
                 color=next(colors),
-                lw=1.6,
-                label=ff,
+                lw=1,
+                label="$\\tau = $" + f"{ff}",
             )
+
+        ax.plot(
+            coefficients[burn_in:, agent],
+            color="k",
+            lw=1,
+            label="Truth",
+            zorder=0,
+        )
 
         if i == 0:
             ax.legend(framealpha=0)
-        ax.set_ylabel("Coefficient Value")
+
+        ax.set_ylabel("$w_2$")
         ax.set_xticks(np.linspace(0, len(coefficients), 5))
         ax.ticklabel_format(
             axis="x", style="scientific", scilimits=(0, 0), useMathText=True
         )
         ax.set_xlabel("Time Step")
+        ax.set_ylim([0.0, 0.67])
 
     save_figure(fig, savedir, f"estimated_coefficients")
 
@@ -93,7 +97,9 @@ def main():
                 [
                     np.linspace(0, 0, sample_size).reshape(-1, 1),
                     np.linspace(-0.2, -0.2, sample_size).reshape(-1, 1),
-                    np.linspace(0.1, 0.6**0.5, sample_size).reshape(-1, 1)
+                    np.linspace(0.1**0.5, 0.6**0.5, sample_size).reshape(
+                        -1, 1
+                    )
                     ** 2,
                     np.linspace(0.3, 0.3, sample_size).reshape(-1, 1),
                 ]
@@ -164,7 +170,7 @@ def main():
                 )
 
             return {
-                ff: np.stack(e[ff] for e in estimated_coefficients)
+                ff: np.stack([e[ff] for e in estimated_coefficients])
                 for ff in forgetting_factors
             }
 

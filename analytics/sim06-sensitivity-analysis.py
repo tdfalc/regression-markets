@@ -20,7 +20,7 @@ from analytics.helpers import (
     build_data,
     conditional_value_at_risk,
     bootstrap_resample,
-    get_julia_colors,
+    get_pyplot_colors,
     MarketDesigns,
 )
 from market.data import BatchData
@@ -109,8 +109,11 @@ def plot_shapley_convergence(
         1, 2, figsize=(5.7, 2.5), sharex=True, sharey=False
     )
 
-    julia_colors = get_julia_colors()
-    colors = cycle([julia_colors[1], julia_colors[2], julia_colors[0]])
+    pyplot_colors = get_pyplot_colors()
+    colors = cycle(
+        [pyplot_colors[3], pyplot_colors[2], pyplot_colors[1], pyplot_colors[0]]
+    )
+
     line_styles = cycle(["-", "--"])
 
     custom_lines = []
@@ -126,7 +129,7 @@ def plot_shapley_convergence(
                 contributions.mean(axis=3)[:, seller, agent_coefficient_index],
                 ls=next(line_styles),
                 markerfacecolor="None",
-                lw=1.6,
+                lw=1,
                 color=color,
                 markersize=6,
             )
@@ -136,7 +139,7 @@ def plot_shapley_convergence(
             allocations.sum(axis=1).mean(axis=2)[:, agent_coefficient_index],
             ls="solid",
             markerfacecolor="None",
-            lw=1.6,
+            lw=1,
             color=color,
             markersize=6,
         )
@@ -145,10 +148,11 @@ def plot_shapley_convergence(
             train_sizes,
             allocations.sum(axis=1).mean(axis=2)[:, agent_coefficient_index],
             color=color,
-            ls="--",
+            ls="-",
+            lw=1,
         )
 
-        custom_lines.append(Line2D([0], [0], color=color, lw=1.6))
+        custom_lines.append(Line2D([0], [0], color=color, lw=1))
 
     for i, ax in enumerate((ax1, ax2)):
         ax.set_xlabel("Sample Size")
@@ -177,11 +181,12 @@ def plot_sample_size_sensitivity(
     upper_quantile: float = 0.05,
 ):
     fig, (ax1, ax2) = plt.subplots(
-        1, 2, figsize=(5.7, 2.65), sharex=True, sharey=True
+        1, 2, figsize=(5.7, 2.5), sharex=True, sharey=True
     )
 
-    julia_colors = get_julia_colors()
-    colors = cycle([julia_colors[1], julia_colors[2], julia_colors[0]])
+    pyplot_colors = get_pyplot_colors()
+
+    colors = cycle([pyplot_colors[2], pyplot_colors[1], pyplot_colors[0]])
 
     line_styles = cycle(["-", "--"])
 
@@ -223,7 +228,7 @@ def plot_sample_size_sensitivity(
                 yerr=ev_ci,
                 label=market_design.value,
                 ls=next(line_styles),
-                lw=1.6,
+                lw=1,
                 color=color,
             )
             ax.errorbar(
@@ -231,11 +236,11 @@ def plot_sample_size_sensitivity(
                 es_mean,
                 yerr=es_ci,
                 ls=next(line_styles),
-                lw=1.6,
+                lw=1,
                 color=color,
             )
 
-        custom_lines.append(Line2D([0], [0], color=color, lw=1.6))
+        custom_lines.append(Line2D([0], [0], color=color, lw=1))
 
     ax1.set_ylabel("Revenue (EUR)")
     ax2.set_ylabel("Revenue (EUR)")
@@ -244,9 +249,9 @@ def plot_sample_size_sensitivity(
         ax.set_xlabel("Sample Size")
         ax.set_xscale("log")
         ax.set_xticks([10, 100, 1000])
-        ax.ticklabel_format(
-            axis="y", style="scientific", scilimits=(1, 0), useMathText=True
-        )
+        # ax.ticklabel_format(
+        #     axis="y", style="scientific", scilimits=(1, 0), useMathText=True
+        # )
         if i == 1:
             ax.yaxis.set_tick_params(labelbottom=True)
         if i == 0:
@@ -268,10 +273,11 @@ def plot_coefficient_magnitude_sensitivity(
     savedir: Path,
 ):
     fig, (ax1, ax2) = plt.subplots(
-        1, 2, figsize=(5.7, 2.65), sharex=True, sharey=True
+        1, 2, figsize=(5.7, 2.5), sharex=True, sharey=True
     )
-    julia_colors = get_julia_colors()
-    colors = cycle([julia_colors[1], julia_colors[2], julia_colors[0]])
+
+    pyplot_colors = get_pyplot_colors()
+    colors = cycle([pyplot_colors[2], pyplot_colors[1], pyplot_colors[0]])
 
     custom_lines = []
     for market_design in market_designs:
@@ -298,25 +304,25 @@ def plot_coefficient_magnitude_sensitivity(
                 gaussian_filter(ev_mean, sigma)[offset:-offset],
                 label=market_design.value,
                 color=color,
-                lw=1.6,
+                lw=1,
             )
             ax.errorbar(
                 agent_coefficients[offset:-offset],
                 gaussian_filter(es_mean, sigma)[offset:-offset],
                 color=color,
-                lw=1.6,
+                lw=1,
                 ls="dashed",
             )
 
-        custom_lines.append(Line2D([0], [0], color=color, lw=1.6))
+        custom_lines.append(Line2D([0], [0], color=color, lw=1))
 
     for i, ax in enumerate((ax1, ax2)):
         ax.set_xlabel("$w_2$")
         ax.set_ylabel("Revenue (EUR)")
         ax.axhline(y=0, lw=1, c="gray")
-        ax.ticklabel_format(
-            axis="y", style="scientific", scilimits=(1, 0), useMathText=True
-        )
+        # ax.ticklabel_format(
+        #     axis="y", style="scientific", scilimits=(1, 0), useMathText=True
+        # )
 
         if i == 1:
             ax.yaxis.set_tick_params(labelbottom=True)
@@ -352,7 +358,7 @@ def main():
             "noise_variance": 1,
             "regularization": 1e-32,
             "num_simulations": 500,
-            "test_payment": 1.05,
+            "test_payment": 0.03,
             "test_size": 1000,
             "train_sizes": np.geomspace(10, 1000, 3),
             "agent_coefficients": np.array([0]),
@@ -364,7 +370,7 @@ def main():
             "noise_variance": 1,
             "regularization": 1e-32,
             "num_simulations": 500,
-            "test_payment": 1.05,
+            "test_payment": 0.03,
             "test_size": 1000,
             # "train_sizes": [10, 20, 30, 40, 50, 100],
             "train_sizes": [20],

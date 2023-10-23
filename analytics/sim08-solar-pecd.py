@@ -24,7 +24,7 @@ from market.task import (
 )
 from market.data import MarketData, BatchData
 from market.mechanism import OnlineMarket
-from analytics.helpers import save_figure, get_julia_colors
+from analytics.helpers import save_figure, get_pyplot_colors
 from market.policy import NllShapleyPolicy
 
 
@@ -98,7 +98,7 @@ def plot_irradiance(
     color_map: Dict,
     savedir: Path,
 ):
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(6, 2.5))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(5.7, 2.5))
     for i, target_code in enumerate(target_codes):
         target_signal = target_signals[i]
         ax1.plot(
@@ -106,16 +106,14 @@ def plot_irradiance(
             gaussian_filter(target_signals[i], sigma=1000),
             label=target_code,
             color=color_map[i],
+            lw=1,
         )
         ax1.set_ylabel("Irradiance $(\mathrm{kW}/\mathrm{m}^2)$")
         ax1.set_xlabel("Date")
 
         hourly = target_signal.groupby(target_signal.index.hour).mean()
         ax2.plot(
-            hourly.index,
-            hourly,
-            label=target_code,
-            color=color_map[i],
+            hourly.index, hourly, label=target_code, color=color_map[i], lw=1
         )
         ax2.set_ylabel("Irradiance $(\mathrm{kW}/\mathrm{m}^2)$")
         ax2.set_xlabel("Hour")
@@ -140,7 +138,7 @@ def plot_results(
     savedir: Path,
 ):
     for two_target_codes in zip(target_codes[::2], target_codes[1::2]):
-        fig, axs = plt.subplots(1, 2, figsize=(6, 2.5), sharey=True)
+        fig, axs = plt.subplots(1, 2, figsize=(5.7, 2.5), sharey=True)
         for ax, target_code in zip(axs.flatten(), two_target_codes):
             output = results[target_code][str(NllShapleyPolicy)]
             ax.yaxis.set_tick_params(labelbottom=True)
@@ -161,6 +159,7 @@ def plot_results(
                         sigma=1000,
                     ),
                     color=color_map[color_idx],
+                    lw=1
                     # label=target_codes[color_idx],
                 )
 
@@ -181,7 +180,7 @@ def plot_results(
                         [0],
                         [0],
                         color=color,
-                        lw=1.6,
+                        lw=1,
                     )
                 )
             if target_code == "TR":
@@ -209,7 +208,7 @@ def main():
     forgetting = 0.998
     results = defaultdict(dict)
 
-    colors = get_julia_colors()
+    colors = get_pyplot_colors()
     color_map = {i: colors[i] for i in range(6)}
 
     target_signals = []

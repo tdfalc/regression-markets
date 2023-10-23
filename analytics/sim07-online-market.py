@@ -22,7 +22,7 @@ from analytics.helpers import (
     bootstrap_resample,
     conditional_value_at_risk,
     MarketDesigns,
-    get_julia_colors,
+    get_pyplot_colors,
 )
 from market.policy import (
     NllShapleyPolicy,
@@ -123,16 +123,16 @@ def plot_coefficients(coefficients: np.ndarray, savedir):
 
 
 def plot_metric_boostrap(results, savedir, idx):
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(5.7, 2.65), sharey=True)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(5.7, 2.5), sharey=True)
 
-    julia_colors = get_julia_colors()
-    colors = cycle([julia_colors[1], julia_colors[2], julia_colors[0]])
+    pyplot_colors = get_pyplot_colors()
+    colors = cycle([pyplot_colors[1], pyplot_colors[2], pyplot_colors[0]])
 
     metric = "payments"
     for ax, stage in zip((ax1, ax2), ("train", "test")):
-        ax.ticklabel_format(
-            axis="both", style="scientific", scilimits=(1, 0), useMathText=True
-        )
+        # ax.ticklabel_format(
+        #     axis="both", style="scientific", scilimits=(1, 0), useMathText=True
+        # )
         for market_design, market_results in results.items():
             color = next(colors)
             metric_results = np.swapaxes(market_results[stage][metric], 0, -1)
@@ -156,7 +156,7 @@ def plot_metric_boostrap(results, savedir, idx):
                     ev_mean.cumsum(),
                     color=color,
                     ls="-",
-                    lw=1.6,
+                    lw=1,
                     label=market_design.value if seller == 0 else None,
                     zorder=1,
                 )
@@ -270,16 +270,6 @@ def main():
                         "market": OnlineMarket,
                         "policy": NllShapleyPolicy,
                     },
-                    MarketDesigns.blr_kld_c: {
-                        "task": OnlineBayesianLinearRegression,
-                        "kwargs": {
-                            "noise_variance": noise_variance,
-                            "forgetting": forgetting_factor,
-                            "regularization": regularization,
-                        },
-                        "market": OnlineMarket,
-                        "policy": KldCfModShapleyPolicy,
-                    },
                     MarketDesigns.blr_kld_m: {
                         "task": OnlineBayesianLinearRegression,
                         "kwargs": {
@@ -289,6 +279,16 @@ def main():
                         },
                         "market": OnlineMarket,
                         "policy": KldContributionModShapleyPolicy,
+                    },
+                    MarketDesigns.blr_kld_c: {
+                        "task": OnlineBayesianLinearRegression,
+                        "kwargs": {
+                            "noise_variance": noise_variance,
+                            "forgetting": forgetting_factor,
+                            "regularization": regularization,
+                        },
+                        "market": OnlineMarket,
+                        "policy": KldCfModShapleyPolicy,
                     },
                 }
 

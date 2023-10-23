@@ -33,7 +33,7 @@ def get_classic_colors():
 
 
 def get_pyplot_colors():
-    return [f"C{i}" for i in range(10)]
+    return [f"C{i}" for i in range(20)]
 
 
 def get_ggplot_colors():

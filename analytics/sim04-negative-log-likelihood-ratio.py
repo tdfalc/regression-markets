@@ -192,7 +192,7 @@ def main():
         )
 
     ax.legend(framealpha=0)
-    ax.set_ylabel("Performance Enhancement (%)")
+    ax.set_ylabel("Improvement (%)")
     ax.set_xlabel("Sample Size")
     ax.set_xscale("log")
 

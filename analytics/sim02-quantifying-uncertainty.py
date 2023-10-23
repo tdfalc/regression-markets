@@ -74,7 +74,7 @@ def plot_predictive_uncertainty(
         label=label,
         # bins=30,
     )
-    ax.set_xlabel("Objective")
+    ax.set_xlabel("Negative Log Likelihood")
     ax.set_ylabel("Count")
     if label is not None:
         ax.legend(framealpha=0)
@@ -178,14 +178,14 @@ def main():
             *y_pred_buyer,
             color=julia_colors[-4],
             alpha=0.6,
-            label="w/o. Market" if i == 0 else None,
+            label="Without Market" if i == 0 else None,
         )
         plot_predictive_uncertainty(
             axs[i, 1],
             y_test,
             *y_pred_grand_coalition,
             color=julia_colors[-3],
-            label="w/. Market" if i == 0 else None,
+            label="With Market" if i == 0 else None,
         )
 
         axs[i, 2] = plt.subplot(len(experiments), 3, i * 3 + 3)

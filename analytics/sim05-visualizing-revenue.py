@@ -23,7 +23,7 @@ from analytics.helpers import (
     conditional_value_at_risk,
     bootstrap_resample,
     MarketDesigns,
-    get_julia_colors,
+    get_pyplot_colors,
 )
 from market.data import BatchData
 from market.policy import (
@@ -111,10 +111,11 @@ def plot_results(
     axins_loc: Sequence,
     savedir: Path,
 ):
-    julia_colors = get_julia_colors()
+    pyplot_colors = get_pyplot_colors()
     colors = cycle(
-        [julia_colors[4], julia_colors[1], julia_colors[2], julia_colors[0]]
+        [pyplot_colors[3], pyplot_colors[2], pyplot_colors[1], pyplot_colors[0]]
     )
+
     markers = cycle(["o", "d", ">", "s"])
 
     fig, axs = plt.subplots(1, 2, figsize=(6, 2.5), sharex=True, sharey=True)
@@ -124,7 +125,7 @@ def plot_results(
             axins = ax.inset_axes(axins_loc)
             axins_xmin, axins_xmax = np.inf, -np.inf
             axins_ymin, axins_ymax = np.inf, -np.inf
-        ax.set_ylabel("Expeceted Value (EUR)")
+        ax.set_ylabel("Expected Value (EUR)")
         ax.set_xlabel("Expected Shortfall (EUR)")
         ax.set_xscale("symlog", linthresh=1e-2)
         ax.set_yscale("symlog", linthresh=1e-1)
@@ -258,15 +259,6 @@ def main():
             "market": BatchMarket,
             "policy": NllShapleyPolicy,
         },
-        MarketDesigns.blr_kld_c: {
-            "task": BayesianLinearRegression,
-            "kwargs": {
-                "noise_variance": noise_variance,
-                "regularization": regularization,
-            },
-            "market": BatchMarket,
-            "policy": KldCfModShapleyPolicy,
-        },
         MarketDesigns.blr_kld_m: {
             "task": BayesianLinearRegression,
             "kwargs": {
@@ -275,6 +267,15 @@ def main():
             },
             "market": BatchMarket,
             "policy": KldContributionModShapleyPolicy,
+        },
+        MarketDesigns.blr_kld_c: {
+            "task": BayesianLinearRegression,
+            "kwargs": {
+                "noise_variance": noise_variance,
+                "regularization": regularization,
+            },
+            "market": BatchMarket,
+            "policy": KldCfModShapleyPolicy,
         },
     }
 
