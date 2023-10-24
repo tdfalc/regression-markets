@@ -7,6 +7,30 @@ Python implemention of [Bayesian Regression Markets]().
 * Transition to Bayesian regression analyses.
 * Allocation policies based on both log-likelihood and KL divergence.
 
+If you find this useful in your work, we kindly request that you cite the following publication(s):
+
+```
+@misc{falconer2023bayesian,
+      title={Bayesian Regression Markets}, 
+      author={Thomas Falconer and Jalal Kazempour and Pierre Pinson},
+      year={2023},
+      eprint={2310.14992},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG}
+}
+```
+
+```
+@misc{falconer2023incentivizing,
+      title={Incentivizing Data Sharing for Energy Forecasting: Analytics Markets with Correlated Data}, 
+      author={Thomas Falconer and Jalal Kazempour and Pierre Pinson},
+      year={2023},
+      eprint={2310.06000},
+      archivePrefix={arXiv},
+      primaryClass={econ.GN}
+}
+```
+
 ## v0 - Introducing regression markets
  
 Python implemention of [Regression markets and application to energy forecasting](https://link.springer.com/article/10.1007/s11750-022-00631-7). 
