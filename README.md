@@ -2,7 +2,7 @@
 
 ## v1 - Towards Bayesian regression markets
  
-Python implemention of [Bayesian Regression Markets](). 
+Python implemention of [Bayesian Regression Markets](https://arxiv.org/abs/2310.14992). 
 
 * Transition to Bayesian regression analyses.
 * Allocation policies based on both log-likelihood and KL divergence.
