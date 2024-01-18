@@ -121,10 +121,8 @@ def main():
 
     # Induced misspecifications
     misspecified_interpolant_function = lambda X: X**2 @ coefficients
-    misspecified_additive_noise_function = (
-        lambda sample_size: np.random.standard_t(
-            df=2, size=(sample_size + test_size, 1)
-        )
+    misspecified_additive_noise_function = lambda sample_size: np.random.standard_t(
+        df=2, size=(sample_size + test_size, 1)
     )
     misspecified_heteroskedasticity_function = lambda X: X[:, -2:-1] ** 2
 
@@ -163,6 +161,14 @@ def main():
         },
     }
 
+    plt.rc("text", usetex=True)
+    plt.rc("font", family="serif")
+    plt.rc("font", size=12)  # controls default text sizes
+    plt.rc("axes", labelsize=12)  # fontsize of the x and y labels
+    plt.rc("xtick", labelsize=12)  # fontsize of the tick labels
+    plt.rc("ytick", labelsize=12)  # fontsize of the tick labels
+    plt.rc("legend", fontsize=12)  # legend fontsize
+
     fig, ax = plt.subplots(figsize=(4, 3.2))
 
     cache_location = savedir / "cache"
@@ -192,7 +198,7 @@ def main():
         )
 
     ax.legend(framealpha=0)
-    ax.set_ylabel("Improvement (%)")
+    ax.set_ylabel(r"Improvement (\%)")
     ax.set_xlabel("Sample Size")
     ax.set_xscale("log")
 

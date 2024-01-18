@@ -8,6 +8,7 @@ import matplotlib as mpl
 from matplotlib import pyplot as plt
 from scipy.stats._multivariate import multivariate_normal_frozen as mvn_frozen
 from scipy import stats
+from matplotlib.patches import Patch
 
 from market.task import BayesianLinearRegression
 from market.data import BatchData
@@ -17,9 +18,7 @@ from analytics.helpers import save_figure, add_dummy, get_julia_colors
 from common.log import create_logger
 
 
-def make_regression(
-    coefficients: np.ndarray, noise_variance: float, sample_size: int
-):
+def make_regression(coefficients: np.ndarray, noise_variance: float, sample_size: int):
     X = add_dummy(
         np.random.multivariate_normal(np.zeros(3), np.eye(3), size=sample_size)
     )
@@ -41,6 +40,7 @@ def plot_posterior(
     grid_x = grid_y = np.linspace(-1, 1, resolution)
     grid_flat = np.dstack(np.meshgrid(grid_x, grid_y)).reshape(-1, 2)
     densities = distribution.pdf(grid_flat).reshape(resolution, resolution)
+
     ax.imshow(
         densities[::-1, :],
         cmap=cm.rainbow,  # cm.jet
@@ -60,24 +60,37 @@ def plot_predictive_uncertainty(
     y_pred_mean: np.ndarray,
     y_pred_variance: np.ndarray,
     color: str = "C0",
-    alpha: float = 1,
     label: str = None,
 ):
+    nll = -stats.norm.logpdf(
+        y_test,
+        loc=y_pred_mean,
+        scale=y_pred_variance**0.5,
+    )
     ax.hist(
-        -stats.norm.logpdf(
-            y_test,
-            loc=y_pred_mean,
-            scale=y_pred_variance**0.5,
-        ),
+        nll,
         color=color,
-        alpha=alpha,
+        alpha=0.4,
+        histtype="stepfilled",
         label=label,
         # bins=30,
     )
+    ax.hist(
+        nll,
+        color=color,
+        histtype="step",
+        label=label,
+        lw=1.5,
+        # bins=30,
+    )
+
     ax.set_xlabel("Negative Log Likelihood")
     ax.set_ylabel("Count")
-    if label is not None:
-        ax.legend(framealpha=0)
+
+    legend_element = Patch(
+        facecolor=color + "44", edgecolor=color, label=label, linewidth=1.5
+    )
+    return legend_element
 
 
 def plot_payments(
@@ -94,7 +107,7 @@ def plot_payments(
             color=color,
             marker="_",
             lw=0.6,
-            s=700,
+            s=500,
         )
         ax.scatter(
             [0],
@@ -102,7 +115,7 @@ def plot_payments(
             color=color,
             marker="_",
             lw=0.6,
-            s=700,
+            s=500,
         )
     ax.set_xticks([0, 1, 2])
     ax.set_xlim([-0.5, 2.5])
@@ -135,6 +148,14 @@ def main():
     fig = plt.figure(figsize=(8, 6.8))
     julia_colors = get_julia_colors()
 
+    plt.rc("text", usetex=True)
+    plt.rc("font", family="serif")
+    plt.rc("font", size=12)  # controls default text sizes
+    plt.rc("axes", labelsize=12)  # fontsize of the x and y labels
+    plt.rc("xtick", labelsize=12)  # fontsize of the tick labels
+    plt.rc("ytick", labelsize=12)  # fontsize of the tick labels
+    plt.rc("legend", fontsize=12)  # legend fontsize
+
     axs = np.empty((len(experiments), 3), dtype=mpl.axes._subplots.SubplotBase)
 
     for i, experiment in enumerate(experiments):
@@ -163,30 +184,35 @@ def main():
         y_pred_grand_coalition = task._predict(
             X_test, posterior_grand_coalition, noise_variance
         )
-        y_pred_buyer = task._predict(
-            X_test[:, [0, 1]], posterior_buyer, noise_variance
-        )
+        y_pred_buyer = task._predict(X_test[:, [0, 1]], posterior_buyer, noise_variance)
 
         axs[i, 1] = plt.subplot(len(experiments), 3, i * 3 + 2)
         if i > 0:
             axs[i - 1, 1].get_shared_x_axes().join(axs[i, 1], axs[i - 1, 1])
             axs[i - 1, 1].get_shared_y_axes().join(axs[i, 1], axs[i - 1, 1])
 
-        plot_predictive_uncertainty(
+        element1 = plot_predictive_uncertainty(
             axs[i, 1],
             y_test,
             *y_pred_buyer,
-            color=julia_colors[-4],
-            alpha=0.6,
+            color="#673AB7",
             label="Without Market" if i == 0 else None,
         )
-        plot_predictive_uncertainty(
+        element2 = plot_predictive_uncertainty(
             axs[i, 1],
             y_test,
             *y_pred_grand_coalition,
-            color=julia_colors[-3],
+            color="#FFB300",
             label="With Market" if i == 0 else None,
         )
+        if i == 0:
+            axs[i, 1].legend(
+                handles=[element1, element2],
+                frameon=False,
+                fontsize=12,
+                loc="upper right",
+                bbox_to_anchor=[1.05, 1],
+            )
 
         axs[i, 2] = plt.subplot(len(experiments), 3, i * 3 + 3)
         if i > 0:

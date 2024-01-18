@@ -62,9 +62,7 @@ def process_raw_data(
     # Add lags for all columns in the DataFrame
     for column in df.columns:
         max_lags = (
-            max_central_agent_lags
-            if column == target_code
-            else max_support_agent_lags
+            max_central_agent_lags if column == target_code else max_support_agent_lags
         )
         df = add_lags(
             df, column, max_lags=max_lags, remove_original=column != target_code
@@ -98,7 +96,7 @@ def plot_irradiance(
     color_map: Dict,
     savedir: Path,
 ):
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(5.7, 2.5))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(6, 2.3))
     for i, target_code in enumerate(target_codes):
         target_signal = target_signals[i]
         ax1.plot(
@@ -112,20 +110,19 @@ def plot_irradiance(
         ax1.set_xlabel("Date")
 
         hourly = target_signal.groupby(target_signal.index.hour).mean()
-        ax2.plot(
-            hourly.index, hourly, label=target_code, color=color_map[i], lw=1
-        )
+        ax2.plot(hourly.index, hourly, label=target_code, color=color_map[i], lw=1)
         ax2.set_ylabel("Irradiance $(\mathrm{kW}/\mathrm{m}^2)$")
         ax2.set_xlabel("Hour")
 
         date_format = mdates.DateFormatter("%m/%y")
         ax1.xaxis.set_major_formatter(date_format)
-        ax1.legend(ncol=2)
+        # ax1.legend(ncol=2)
         ax1.xaxis.set_major_locator(MaxNLocator(5))
 
         date_format = mdates.DateFormatter("%m/%y")
         ax2.xaxis.set_major_locator(MaxNLocator(7))
         ax2.set_xlabel("Hour")
+        ax2.legend(ncol=1, frameon=False)
 
     save_figure(fig, savedir, "irradiance")
 
@@ -138,7 +135,7 @@ def plot_results(
     savedir: Path,
 ):
     for two_target_codes in zip(target_codes[::2], target_codes[1::2]):
-        fig, axs = plt.subplots(1, 2, figsize=(5.7, 2.5), sharey=True)
+        fig, axs = plt.subplots(1, 2, figsize=(6, 2.3), sharey=True)
         for ax, target_code in zip(axs.flatten(), two_target_codes):
             output = results[target_code][str(NllShapleyPolicy)]
             ax.yaxis.set_tick_params(labelbottom=True)
@@ -195,6 +192,14 @@ def main():
     savedir = Path(__file__).parent / "docs/sim08-solar-pecd"
     os.makedirs(savedir, exist_ok=True)
 
+    plt.rc("text", usetex=True)
+    plt.rc("font", family="serif")
+    plt.rc("font", size=12)  # controls default text sizes
+    plt.rc("axes", labelsize=12)  # fontsize of the x and y labels
+    plt.rc("xtick", labelsize=12)  # fontsize of the tick labels
+    plt.rc("ytick", labelsize=12)  # fontsize of the tick labels
+    plt.rc("legend", fontsize=10)  # legend fontsize
+
     url = "https://data.dtu.dk/ndownloader/files/35039785"
 
     start = dt(2018, 1, 1, 0, 0, tzinfo=pytz.utc)
@@ -248,9 +253,7 @@ def main():
 
         market_data = MarketData(
             dummy_feature=np.ones((len(central_agent_features), 1)),
-            central_agent_features=central_agent_features.to_numpy().reshape(
-                -1, 1
-            ),
+            central_agent_features=central_agent_features.to_numpy().reshape(-1, 1),
             support_agent_features=support_agent_features.to_numpy(),
             target_signal=target_signal.to_numpy().reshape(-1, 1),
             polynomial_degree=polynomial_degree,
@@ -275,9 +278,7 @@ def main():
         )(policy)
 
     plot_irradiance(target_signals, target_codes, color_map, savedir)
-    plot_results(
-        results, target_signal.index[:-1], target_codes, color_map, savedir
-    )
+    plot_results(results, target_signal.index[:-1], target_codes, color_map, savedir)
 
 
 if __name__ == "__main__":

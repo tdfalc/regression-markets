@@ -93,9 +93,9 @@ def parse_results(
             for market_design in market_designs:
                 for stage in stages:
                     for metric in metrics:
-                        parsed_results[i][market_design][stage][metric][
-                            j
-                        ] = results[j][i][market_design][stage][metric].T
+                        parsed_results[i][market_design][stage][metric][j] = results[j][
+                            i
+                        ][market_design][stage][metric].T
 
     stacked_results = partial(defaultdict, partial(defaultdict, dict))()
     for market_design in market_designs:
@@ -123,7 +123,7 @@ def plot_coefficients(coefficients: np.ndarray, savedir):
 
 
 def plot_metric_boostrap(results, savedir, idx):
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(5.7, 2.5), sharey=True)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(6, 2.3), sharey=True)
 
     pyplot_colors = get_pyplot_colors()
     colors = cycle([pyplot_colors[1], pyplot_colors[2], pyplot_colors[0]])
@@ -176,6 +176,14 @@ def main():
 
     savedir = Path(__file__).parent / "docs/sim07-online-market"
     os.makedirs(savedir, exist_ok=True)
+
+    plt.rc("text", usetex=True)
+    plt.rc("font", family="serif")
+    plt.rc("font", size=12)  # controls default text sizes
+    plt.rc("axes", labelsize=12)  # fontsize of the x and y labels
+    plt.rc("xtick", labelsize=12)  # fontsize of the tick labels
+    plt.rc("ytick", labelsize=12)  # fontsize of the tick labels
+    plt.rc("legend", fontsize=10)  # legend fontsize
 
     config = {
         "num_simulations": 1000,
@@ -234,9 +242,7 @@ def main():
         forgetting_factors = config["forgetting_factors"]
         burn_in = config["burn_in"]
 
-        interpolant_function = lambda X: np.sum(
-            X * coefficients, axis=1, keepdims=True
-        )
+        interpolant_function = lambda X: np.sum(X * coefficients, axis=1, keepdims=True)
         additive_noise_function = lambda sample_size: np.random.normal(
             0, np.sqrt(noise_variance), size=(sample_size, 1)
         )

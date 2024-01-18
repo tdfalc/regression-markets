@@ -5,14 +5,15 @@ from itertools import cycle
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy import stats
+import pandas as pd
 
 from common.log import create_logger
-from analytics.helpers import save_figure, julia_colors
+from analytics.helpers import save_figure, get_pyplot_colors
 
 
 def plot_manifold(savedir: Path):
     rhos = [0, 0.9]
-    colors = cycle(julia_colors()[:])
+    colors = cycle(get_pyplot_colors()[:])
 
     vmin, vmax = -3, 3
     resolution = 100
@@ -33,9 +34,7 @@ def plot_manifold(savedir: Path):
         color = next(colors)
 
         num_levels = 10
-        contour = ax.contour(
-            XX, YY, ZZ, colors=color, levels=num_levels, linewidths=2
-        )
+        contour = ax.contour(XX, YY, ZZ, colors=color, levels=num_levels, linewidths=2)
         contour_levels = contour.collections
 
         # Display only the outermost contour level
@@ -46,15 +45,32 @@ def plot_manifold(savedir: Path):
             contour_levels[j].set_alpha(0)
 
         if i == 0:
-            lower, upper = np.min(contour.allsegs[1]), np.max(
-                contour.allsegs[1]
-            )
+            lower, upper = np.min(contour.allsegs[1]), np.max(contour.allsegs[1])
+
+        # outermost_level.set_offset_position("data")
+        # print(outermost_level.get_offsets())
+
+        level_segs = contour.allsegs[1][0]
+        x, y = level_segs[:, 0], level_segs[:, 1]
+        pd.DataFrame({"x": x, "y": y}).to_csv(
+            savedir / f"data{i}.txt", index=False, sep="\t"
+        )
 
     color = next(colors)
-    ax.plot([lower, upper], [0, 0], c=color, label="$do(X_1 = x_1)$", lw=2)
-    ax.plot(
+    l1 = ax.plot([lower, upper], [0, 0], c=color, label="$do(X_1 = x_1)$", lw=2)
+    l2 = ax.plot(
         [0, 0], [lower, upper], c=color, label="$do(X_2 = x_2)$", ls="--", lw=2
     )
+
+    l1_data = np.array(l1[0].get_data()).T
+    l2_data = np.array(l2[0].get_data()).T
+    pd.DataFrame({"x": l1_data[:, 0], "y": l1_data[:, 1]}).to_csv(
+        savedir / f"l1data{i}.txt", index=False, sep="\t"
+    )
+    pd.DataFrame({"x": l2_data[:, 0], "y": l2_data[:, 1]}).to_csv(
+        savedir / f"l2data{i}.txt", index=False, sep="\t"
+    )
+
     ax.legend(loc="upper left")
     ax.set_xlabel("$x_1$")
     ax.set_ylabel("$x_2$")

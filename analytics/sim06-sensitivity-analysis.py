@@ -68,9 +68,7 @@ def parse_results(
 ):
     parsed_results = nested_defaultdict(
         4,
-        lambda: np.zeros(
-            (num_agent_coefficients, num_train_sizes, num_sellers)
-        ),
+        lambda: np.zeros((num_agent_coefficients, num_train_sizes, num_sellers)),
     )
 
     for i in range(num_simulations):
@@ -105,9 +103,7 @@ def plot_shapley_convergence(
     agent_coefficient_index: int,
     savedir: Path,
 ):
-    fig, (ax1, ax2) = plt.subplots(
-        1, 2, figsize=(5.7, 2.5), sharex=True, sharey=False
-    )
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(5.7, 2.3), sharex=True, sharey=False)
 
     pyplot_colors = get_pyplot_colors()
     colors = cycle(
@@ -116,11 +112,15 @@ def plot_shapley_convergence(
 
     line_styles = cycle(["-", "--"])
 
+    markers = cycle(["*", "o", "s"])
+
     custom_lines = []
     for market_design in market_designs:
         market_results = results[market_design]
         contributions = market_results["train"]["contributions"]
         allocations = market_results["train"]["allocations"]
+
+        marker = next(markers)
 
         color = next(colors)
         for seller in (0, 1):
@@ -134,23 +134,45 @@ def plot_shapley_convergence(
                 markersize=6,
             )
 
-        ax2.plot(
-            train_sizes,
-            allocations.sum(axis=1).mean(axis=2)[:, agent_coefficient_index],
-            ls="solid",
-            markerfacecolor="None",
-            lw=1,
-            color=color,
-            markersize=6,
-        )
+        if market_design == MarketDesigns.blr_kld_m:
+            ax2.plot(
+                train_sizes,
+                np.ones(len(train_sizes)),
+                ls="dashed",
+                markerfacecolor="None",
+                lw=1,
+                color="k",
+                markersize=6,
+            )
+            ax2.plot(
+                train_sizes,
+                allocations.sum(axis=1).mean(axis=2)[:, agent_coefficient_index],
+                ls="solid",
+                markerfacecolor="None",
+                lw=1,
+                color=color,
+                markersize=6,
+            )
+            # ax2.plot(
+            #     train_sizes,
+            #     allocations.sum(axis=1).mean(axis=2)[:, agent_coefficient_index],
+            #     color=color,
+            #     ls="-",
+            #     lw=1,
+            #     marker=marker,
+            #     markerfacecolor="None",
+            # )
 
-        ax2.plot(
-            train_sizes,
-            allocations.sum(axis=1).mean(axis=2)[:, agent_coefficient_index],
-            color=color,
-            ls="-",
-            lw=1,
-        )
+        else:
+            ax2.plot(
+                train_sizes,
+                np.ones(len(train_sizes)),
+                ls="dashed",
+                markerfacecolor="None",
+                lw=1,
+                color="k",
+                markersize=6,
+            )
 
         custom_lines.append(Line2D([0], [0], color=color, lw=1))
 
@@ -159,11 +181,14 @@ def plot_shapley_convergence(
         ax.set_xscale("log")
         ax.set_xticks([10, 100, 1000, 10000])
         ax.set_ylabel("Shapley Value" if i == 0 else "Total Allocation")
-        if i == 1:
+        if i == 0:
             ax.legend(
                 custom_lines,
                 [market_design.value for market_design in market_designs],
                 framealpha=0,
+                ncol=1,
+                loc="upper right",
+                bbox_to_anchor=(1, 0.92),
             )
 
     save_figure(fig, savedir, f"shapley_convergence", tight=True)
@@ -180,9 +205,7 @@ def plot_sample_size_sensitivity(
     lower_quantile: float = 0.05,
     upper_quantile: float = 0.05,
 ):
-    fig, (ax1, ax2) = plt.subplots(
-        1, 2, figsize=(5.7, 2.5), sharex=True, sharey=True
-    )
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(5.7, 2.5), sharex=True, sharey=True)
 
     pyplot_colors = get_pyplot_colors()
 
@@ -206,9 +229,7 @@ def plot_sample_size_sensitivity(
             )
 
             def get_statistics(metric):
-                mean = metric.mean(axis=0)[
-                    agent_index, agent_coefficient_index, :
-                ]
+                mean = metric.mean(axis=0)[agent_index, agent_coefficient_index, :]
                 confidence_interval = []
                 for bound in (lower_quantile, upper_quantile):
                     quantile = np.quantile(metric, bound, axis=0)[
@@ -272,9 +293,7 @@ def plot_coefficient_magnitude_sensitivity(
     train_size_index: int,
     savedir: Path,
 ):
-    fig, (ax1, ax2) = plt.subplots(
-        1, 2, figsize=(5.7, 2.5), sharex=True, sharey=True
-    )
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(5.7, 2.5), sharex=True, sharey=True)
 
     pyplot_colors = get_pyplot_colors()
     colors = cycle([pyplot_colors[2], pyplot_colors[1], pyplot_colors[0]])
@@ -350,38 +369,44 @@ def main():
             "test_size": 1000,
             "train_sizes": np.geomspace(10, 10000, 4),
             "agent_coefficients": np.array([0.7]),
-            "coefficients_function": lambda c: np.atleast_2d(
-                [-0.1, 0.8, c, -0.9]
-            ).T,
+            "coefficients_function": lambda c: np.atleast_2d([-0.1, 0.8, c, -0.9]).T,
         },
-        "case1": {  # Varying sample size
-            "noise_variance": 1,
-            "regularization": 1e-32,
-            "num_simulations": 500,
-            "test_payment": 0.03,
-            "test_size": 1000,
-            "train_sizes": np.geomspace(10, 1000, 3),
-            "agent_coefficients": np.array([0]),
-            "coefficients_function": lambda c: np.atleast_2d(
-                [0.1, -0.5, c, 0.7]
-            ).T,
-        },
-        "case2": {  # Varying coefficient magnitude
-            "noise_variance": 1,
-            "regularization": 1e-32,
-            "num_simulations": 500,
-            "test_payment": 0.03,
-            "test_size": 1000,
-            # "train_sizes": [10, 20, 30, 40, 50, 100],
-            "train_sizes": [20],
-            "agent_coefficients": np.concatenate(
-                (-np.linspace(0, 1.1, 110)[::-1], np.linspace(0, 1.1, 110))
-            ),
-            "coefficients_function": lambda c: np.atleast_2d(
-                [0.1, -0.5, c, 0.7]
-            ).T,
-        },
+        # "case1": {  # Varying sample size
+        #     "noise_variance": 1,
+        #     "regularization": 1e-32,
+        #     "num_simulations": 500,
+        #     "test_payment": 0.03,
+        #     "test_size": 1000,
+        #     "train_sizes": np.geomspace(10, 1000, 3),
+        #     "agent_coefficients": np.array([0]),
+        #     "coefficients_function": lambda c: np.atleast_2d(
+        #         [0.1, -0.5, c, 0.7]
+        #     ).T,
+        # },
+        # "case2": {  # Varying coefficient magnitude
+        #     "noise_variance": 1,
+        #     "regularization": 1e-32,
+        #     "num_simulations": 500,
+        #     "test_payment": 0.03,
+        #     "test_size": 1000,
+        #     # "train_sizes": [10, 20, 30, 40, 50, 100],
+        #     "train_sizes": [20],
+        #     "agent_coefficients": np.concatenate(
+        #         (-np.linspace(0, 1.1, 110)[::-1], np.linspace(0, 1.1, 110))
+        #     ),
+        #     "coefficients_function": lambda c: np.atleast_2d(
+        #         [0.1, -0.5, c, 0.7]
+        #     ).T,
+        # },
     }
+
+    plt.rc("text", usetex=True)
+    plt.rc("font", family="serif")
+    plt.rc("font", size=12)  # controls default text sizes
+    plt.rc("axes", labelsize=12)  # fontsize of the x and y labels
+    plt.rc("xtick", labelsize=12)  # fontsize of the tick labels
+    plt.rc("ytick", labelsize=12)  # fontsize of the tick labels
+    plt.rc("legend", fontsize=12)  # legend fontsize
 
     for experiment_title, config in experiments.items():
         experiment_location = savedir / experiment_title
@@ -429,10 +454,8 @@ def main():
                     coefficients = coefficients_function(agent_coefficient)
 
                     interpolant_function = lambda X: X @ coefficients
-                    additive_noise_function = (
-                        lambda sample_size: np.random.normal(
-                            0, np.sqrt(noise_variance), size=(sample_size, 1)
-                        )
+                    additive_noise_function = lambda sample_size: np.random.normal(
+                        0, np.sqrt(noise_variance), size=(sample_size, 1)
                     )
 
                     heteroskedasticity_function = lambda X: 1
@@ -521,23 +544,23 @@ def main():
             savedir=experiment_location,
         )
 
-        plot_sample_size_sensitivity(
-            results=parsed_results,
-            market_designs=list(MarketDesigns)[1:],
-            sample_sizes=train_sizes,
-            agent_index=0,
-            agent_coefficient_index=0,
-            savedir=experiment_location,
-        )
+        # plot_sample_size_sensitivity(
+        #     results=parsed_results,
+        #     market_designs=list(MarketDesigns)[1:],
+        #     sample_sizes=train_sizes,
+        #     agent_index=0,
+        #     agent_coefficient_index=0,
+        #     savedir=experiment_location,
+        # )
 
-        plot_coefficient_magnitude_sensitivity(
-            results=parsed_results,
-            market_designs=list(MarketDesigns)[1:],
-            agent_coefficients=agent_coefficients,
-            agent_index=0,
-            train_size_index=0,
-            savedir=experiment_location,
-        )
+        # plot_coefficient_magnitude_sensitivity(
+        #     results=parsed_results,
+        #     market_designs=list(MarketDesigns)[1:],
+        #     agent_coefficients=agent_coefficients,
+        #     agent_index=0,
+        #     train_size_index=0,
+        #     savedir=experiment_location,
+        # )
 
 
 if __name__ == "__main__":

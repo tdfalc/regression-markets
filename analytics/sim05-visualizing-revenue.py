@@ -47,12 +47,8 @@ def simulate_batch(
         task.update_posterior(X_train, y_train, indices)
         posterior = task.get_posterior(indices)
         noise_variance = task.get_noise_variance(indices)
-        train_loss = task.calculate_loss(
-            X_train, y_train, posterior, noise_variance
-        )
-        test_loss = task.calculate_loss(
-            X_test, y_test, posterior, noise_variance
-        )
+        train_loss = task.calculate_loss(X_train, y_train, posterior, noise_variance)
+        test_loss = task.calculate_loss(X_test, y_test, posterior, noise_variance)
         return train_loss, test_loss
 
     results = {}
@@ -118,7 +114,7 @@ def plot_results(
 
     markers = cycle(["o", "d", ">", "s"])
 
-    fig, axs = plt.subplots(1, 2, figsize=(6, 2.5), sharex=True, sharey=True)
+    fig, axs = plt.subplots(1, 2, figsize=(6.5, 2.4), sharex=True, sharey=True)
     for ax, stage in zip(axs.flatten(), ("train", "test")):
         if stage == "train":
             axins_false = ax.inset_axes(axins_loc)
@@ -213,7 +209,7 @@ def plot_results(
         custom_lines,
         [market_design.value for market_design in market_designs.keys()],
         framealpha=0,
-        fontsize=9,
+        # fontsize=9,
         loc="lower left",
         bbox_to_anchor=(0, -0.04),
         ncol=1,
@@ -290,8 +286,8 @@ def main():
 
     # Induced misspecifications
     misspecified_interpolant_function = lambda X: X**2 @ coefficients
-    misspecified_additive_noise_function = (
-        lambda sample_size: np.random.standard_t(df=2, size=(sample_size, 1))
+    misspecified_additive_noise_function = lambda sample_size: np.random.standard_t(
+        df=2, size=(sample_size, 1)
     )
     misspecified_heteroskedasticity_function = lambda X: X[:, -2:-1] ** 2
     misspecified_heteroskedasticity_function = lambda X: 2 * X[:, -1:]
@@ -344,9 +340,7 @@ def main():
         logger.info(f"Running experiment: {experiment_title}")
         cache_location = savedir / "cache" / experiment_title
         os.makedirs(cache_location, exist_ok=True)
-        with tqdm_joblib(
-            tqdm(desc="Simulation progress", total=num_simulations)
-        ) as _:
+        with tqdm_joblib(tqdm(desc="Simulation progress", total=num_simulations)) as _:
             experiment_results = cache(save_dir=cache_location)(
                 lambda: Parallel(n_jobs=-1)(
                     delayed(simulate_batch)(
@@ -360,6 +354,14 @@ def main():
             )()
 
         all_results[experiment_title] = parse_result(experiment_results)
+
+    plt.rc("text", usetex=True)
+    plt.rc("font", family="serif")
+    plt.rc("font", size=12)  # controls default text sizes
+    plt.rc("axes", labelsize=12)  # fontsize of the x and y labels
+    plt.rc("xtick", labelsize=12)  # fontsize of the tick labels
+    plt.rc("ytick", labelsize=12)  # fontsize of the tick labels
+    plt.rc("legend", fontsize=9)  # legend fontsize
 
     plot_results(
         results=all_results,

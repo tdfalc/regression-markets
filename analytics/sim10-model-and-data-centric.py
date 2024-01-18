@@ -13,7 +13,7 @@ from market.task import BayesianLinearRegression
 from market.mechanism import BatchMarket
 from market.policy import NllShapleyPolicy
 from common.log import create_logger
-from analytics.helpers import save_figure, julia_colors
+from analytics.helpers import save_figure, get_pyplot_colors
 
 
 def build_market_data(
@@ -23,9 +23,7 @@ def build_market_data(
     sample_size: int,
     test_frac: float = 0.5,
 ):
-    def build_var_process(
-        coefficients: np.ndarray, autocorrelations: np.ndarray
-    ):
+    def build_var_process(coefficients: np.ndarray, autocorrelations: np.ndarray):
         var = np.eye(len(coefficients) + 1)
         np.fill_diagonal(var, autocorrelations)
         var[0, 1:] = coefficients
@@ -111,9 +109,7 @@ def run_experiment(
         for i, agent in enumerate(market_data.active_agents):
             indices = np.setdiff1d(indices_gc, agent)
             posterior_mean = posterior.mean[indices].copy()
-            posterior_covariance = posterior.cov[np.sort(indices), :][
-                :, indices
-            ].copy()
+            posterior_covariance = posterior.cov[np.sort(indices), :][:, indices].copy()
             loss = task.calculate_loss(
                 market_data.X_train[:, indices],
                 market_data.y_train,
@@ -126,11 +122,7 @@ def run_experiment(
         return allocations[True], allocations[False], loss_diff
 
     allocations_obs, allocations_int, loss_diff = list(
-        zip(
-            *Parallel(n_jobs=-1)(
-                delayed(_one_sample)() for _ in range(num_samples)
-            )
-        )
+        zip(*Parallel(n_jobs=-1)(delayed(_one_sample)() for _ in range(num_samples)))
     )
     return (
         np.vstack(allocations_obs),
@@ -154,7 +146,12 @@ def plot_results(
 
     fig, ax = plt.subplots(dpi=600, figsize=(3.6, 3.2))
 
-    colors = cycle([julia_colors()[7]] + julia_colors()[5:])
+    colors = cycle([get_pyplot_colors()[7]] + get_pyplot_colors()[5:])
+
+    print(means)
+
+    means.to_csv(savedir / f"means.txt", index=True, sep="\t")
+
     for i, col in enumerate(means.columns):
         ax.bar(
             np.arange(2) + i * 0.2,

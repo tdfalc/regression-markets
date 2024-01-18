@@ -36,10 +36,10 @@ def plot_coefficients(
     savedir: Path,
     burn_in: int = 50,
 ):
-    fig, axs = plt.subplots(
-        1, len(experiments), sharey=False, figsize=(5.7, 2.5)
-    )
+    fig, axs = plt.subplots(1, len(experiments), sharey=False, figsize=(6, 2.3))
     colors = cycle(get_julia_colors()[5:8])
+
+    colors = cycle(["#E91E63", "#4DD0E1", "#673AB7"])
 
     for i, ((experiment_title, experiment_config), ax) in enumerate(
         zip(experiments.items(), axs.flatten())
@@ -97,9 +97,7 @@ def main():
                 [
                     np.linspace(0, 0, sample_size).reshape(-1, 1),
                     np.linspace(-0.2, -0.2, sample_size).reshape(-1, 1),
-                    np.linspace(0.1**0.5, 0.6**0.5, sample_size).reshape(
-                        -1, 1
-                    )
+                    np.linspace(0.1**0.5, 0.6**0.5, sample_size).reshape(-1, 1)
                     ** 2,
                     np.linspace(0.3, 0.3, sample_size).reshape(-1, 1),
                 ]
@@ -162,9 +160,7 @@ def main():
 
                 return estimated_coefficients
 
-            with tqdm_joblib(
-                tqdm(desc="Simulation progress", total=num_samples)
-            ) as _:
+            with tqdm_joblib(tqdm(desc="Simulation progress", total=num_samples)) as _:
                 estimated_coefficients = Parallel(n_jobs=-1)(
                     delayed(_simulate)() for run in range(num_samples)
                 )
@@ -175,6 +171,14 @@ def main():
             }
 
         results[experiment_title] = _run_experiment()
+
+    plt.rc("text", usetex=True)
+    plt.rc("font", family="serif")
+    plt.rc("font", size=12)  # controls default text sizes
+    plt.rc("axes", labelsize=12)  # fontsize of the x and y labels
+    plt.rc("xtick", labelsize=12)  # fontsize of the tick labels
+    plt.rc("ytick", labelsize=12)  # fontsize of the tick labels
+    plt.rc("legend", fontsize=10)  # legend fontsize
 
     plot_coefficients(
         experiments,

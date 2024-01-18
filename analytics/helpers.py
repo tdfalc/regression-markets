@@ -15,13 +15,11 @@ class MarketDesigns(str, Enum):
     blr_kld_c = r"$\mathcal{M}^{\mathrm{BLR}}_{\mathrm{KL}-v}$"
 
 
-def save_figure(
-    fig, savedir: Path, filename: str, dpi: int = 600, tight: bool = True
-):
+def save_figure(fig, savedir: Path, filename: str, dpi: int = 300, tight: bool = True):
     if tight:
         fig.tight_layout()
     for extension in (".pdf", ".png"):
-        fig.savefig(savedir / (filename + extension), dpi=dpi)
+        fig.savefig(savedir / (filename + extension), dpi=dpi, transparent=True)
 
 
 def add_dummy(X: np.ndarray):
