@@ -10,7 +10,6 @@ class MarketData:
         central_agent_features: np.ndarray,
         support_agent_features: np.ndarray,
         target_signal: np.ndarray,
-        polynomial_degree: int = 1,
     ):
         """Instantiate `MarketData`.
         Args:
@@ -20,17 +19,12 @@ class MarketData:
             support_agent_features (np.ndarray): Observations for features owned
                 by the support_agents.
             target_signal (np.ndarray): Ground truth values for the target signal.
-            polynomial_degree (int): If the polynomial order is greater than 1,
-                iteractions may exist between the central_agent and support_agents
-                features, impacting the allocations and payments. Note, in this case,
-                the allocation of the support_agents may not necessesarily sum to 1.
         """
 
         self.dummy_feature = dummy_feature
         self.central_agent_features = central_agent_features
         self.support_agent_features = support_agent_features
         self.target_signal = target_signal
-        self.degree = polynomial_degree
 
         self.num_central_agent_features = self.central_agent_features.shape[1]
         self.num_support_agent_features = self.support_agent_features.shape[1]
@@ -44,7 +38,6 @@ class MarketData:
         market_features = np.hstack(
             [self.central_agent_features, self.support_agent_features]
         )
-        market_features = add_polynomial_features(market_features, degree=self.degree)
         return np.hstack([self.dummy_feature, market_features])
 
     def _set_agent_indices(self):
@@ -52,9 +45,7 @@ class MarketData:
         support_agents = set(
             np.arange(self.num_support_agent_features) + max(central_agents) + 1
         )
-        self.active_agents = (
-            support_agents.union(central_agents) if self.degree > 1 else support_agents
-        )
+        self.active_agents = support_agents
         self.baseline_agents = set([0]).union(
             central_agents.difference(self.active_agents)
         )
@@ -67,7 +58,6 @@ class BatchData(MarketData):
         central_agent_features: np.ndarray,
         support_agent_features: np.ndarray,
         target_signal: np.ndarray,
-        polynomial_degree: int = 1,
         test_frac: float = 0,
     ):
         super().__init__(
@@ -75,7 +65,6 @@ class BatchData(MarketData):
             central_agent_features=central_agent_features,
             support_agent_features=support_agent_features,
             target_signal=target_signal,
-            polynomial_degree=polynomial_degree,
         )
 
         self.test_frac = test_frac
