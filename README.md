@@ -1,5 +1,25 @@
 # Regression Markets
 
+## v2 - Capricious data streams 
+
+Python implemention of [Towards Regression Markets with Capricious Data Streams](https://arxiv.org/abs/2310.14992). 
+
+* Transition to Gaussian Process regression analyses.
+* Currently only explores out-of-sample market.
+
+If you find this useful in your work, we kindly request that you cite the following publication(s):
+
+```
+@misc{falconer2023bayesian,
+      title={Towards Regression Markets with Capricious Data Streams}, 
+      author={Thomas Falconer and Jalal Kazempour and Pierre Pinson},
+      year={2023},
+      eprint={2310.14992},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG}
+}
+```
+
 ## v1 - Towards Bayesian regression markets
  
 Python implemention of [Bayesian Regression Markets](https://arxiv.org/abs/2310.14992). 
@@ -22,7 +42,7 @@ If you find this useful in your work, we kindly request that you cite the follow
 
 ```
 @misc{falconer2023incentivizing,
-      title={Incentivizing Data Sharing for Energy Forecasting: Analytics Markets with Correlated Data}, 
+      title={Replication-Robust Analytics Markets}, 
       author={Thomas Falconer and Jalal Kazempour and Pierre Pinson},
       year={2023},
       eprint={2310.06000},

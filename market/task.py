@@ -36,6 +36,14 @@ class Task:
     def set_posterior_noise_variance(self, indices: Sequence, noise_variance: Any):
         self._noise_variances[tuple(indices)] = noise_variance
 
+    def calculate_loss(
+        self, X: np.ndarray, y: np.ndarray, indices: np.ndarray, X_covariance
+    ) -> float:
+        predictive_mean, predictive_sdev = self.predict(
+            X=X, indices=indices, X_covariance=X_covariance
+        )
+        return -stats.norm.logpdf(y, loc=predictive_mean, scale=predictive_sdev).mean()
+
 
 class WeightSpaceTask(Task):
     def __init__(self):
@@ -57,12 +65,6 @@ class WeightSpaceTask(Task):
     def _predictive_mean(self, X: np.ndarray, coefficients: mvn_frozen):
         return X.dot(coefficients.mean).reshape(-1, 1)
 
-    def calculate_loss(
-        self, X: np.ndarray, y: np.ndarray, indices: np.ndarray
-    ) -> float:
-        predictive_mean, predictive_sdev = self.predict(X, indices)
-        return -stats.norm.logpdf(y, loc=predictive_mean, scale=predictive_sdev).mean()
-
 
 class MaximumLikelihoodLinearRegression(WeightSpaceTask):
     def __init__(self):
@@ -78,7 +80,7 @@ class MaximumLikelihoodLinearRegression(WeightSpaceTask):
         # estimate and the posterior covariance to a zero matrix, we can obtain the
         # maximum likelihood predictive distribution using the same analytical method
         # of integration.
-        X, y = np.atleast_2d(X)[:, indices].copy(), np.atleast_2d(y).copy()
+        X, y = np.atleast_2d(X)[:, indices].copy(), y.reshape(-1, 1).copy()
         posterior_mean = self._ols_solution(X, y).flatten()
         posterior_covariance = np.diag(np.full(X.shape[1], math.ulp(1.0)))
         posterior_coefficients = stats.multivariate_normal(
@@ -91,7 +93,7 @@ class MaximumLikelihoodLinearRegression(WeightSpaceTask):
         noise_variance = np.mean((predictive_mean - y) ** 2)
         self.set_posterior_noise_variance(indices, noise_variance)
 
-    def predict(self, X: np.ndarray, indices: np.ndarray) -> Tuple:
+    def predict(self, X: np.ndarray, indices: np.ndarray, **_) -> Tuple:
         posterior_coefficients = self.get_posterior_coefficients(indices)
         noise_variance = self.get_posterior_noise_variance(indices)
         predictive_mean = self._predictive_mean(X, posterior_coefficients)
@@ -109,7 +111,7 @@ class BayesianLinearRegression(WeightSpaceTask):
         super().__init__()
 
     def _update_posterior(self, X: np.ndarray, y: np.ndarray, indices: Sequence):
-        X, y = np.atleast_2d(X)[:, indices], np.atleast_2d(y)
+        X, y = np.atleast_2d(X)[:, indices], y.reshape(-1, 1).copy()
         prior_coefficients = self._build_prior_coefficients(indices)
         prior_mean = prior_coefficients.mean.reshape(-1, 1)
         prior_covariance = prior_coefficients.cov
@@ -147,7 +149,7 @@ class BayesianLinearRegression(WeightSpaceTask):
             return self.get_posterior_coefficients(tuple(indices))
         return self._flat_prior_coefficients(indices)
 
-    def predict(self, X: np.ndarray, indices: np.ndarray) -> Tuple:
+    def predict(self, X: np.ndarray, indices: np.ndarray, **_) -> Tuple:
         coefficients = self.get_posterior_coefficients(indices)
         noise_variance = self.get_posterior_noise_variance(indices)
         predictive_mean = self._predictive_mean(X, coefficients)
@@ -183,7 +185,7 @@ class GaussianProcessLinearRegression(Task):
         with warnings.catch_warnings():
             # Ignore bounds warning for regularization parameter
             warnings.filterwarnings("ignore", category=ConvergenceWarning)
-        gp.fit(self.X_train, self.y_train)
+            gp.fit(self.X_train, self.y_train)
         noise_variance = gp.kernel_.get_params()["k2__noise_level"]
         self.set_posterior_noise_variance(indices, noise_variance)
 
@@ -208,35 +210,35 @@ class GaussianProcessLinearRegression(Task):
 
     def predict(
         self,
-        X_query_mean: np.ndarray,
+        X: np.ndarray,
         indices: np.ndarray,
-        X_query_covariance: np.ndarray = None,
+        X_covariance: np.ndarray = None,
     ) -> Tuple[np.ndarray, np.ndarray]:
         """Compute Gaussian Process posterior moments with possibly noisy query points.
 
         Args:
-            X_query_mean (np.ndarray): the array of index point means at which the resulting posterior
-                predictive distribution over function values is defined.
+            X (np.ndarray): the array of index point means at which the resulting posterior predictive
+                distribution over function values is defined.
             indices (np.ndarray): array of indicies to look up posterior noise variance.
-            X_query_covariance (np.ndarray): the corresponding array of index point covariances. The
-                shape of this array will be (N, M, M), where M is the number of features and N is
-                the number of query points.
+            X_covariance (np.ndarray): the corresponding array of index point covariances. The shape of
+                this array will be (N, M, M), where M is the number of features and N is the number of
+                query points.
 
         Returns:
             Tuple[np.ndarray, np.ndarray]: mean and standard deviation of Gaussian posterior
                 predictive distribution.
         """
         noise_variance = self.get_posterior_noise_variance(indices)
-        mean, sdev = self._input_noise_free_posterior(X_query_mean, noise_variance)
-        if X_query_covariance is None:
+        mean, sdev = self._input_noise_free_posterior(X, noise_variance)
+        if X_covariance is None or np.count_nonzero(X_covariance) == 0:
             # If no covariance is provided, the noise-free posterior is returned
             # to avoid unecessary computations (i.e., we would get the same result
             # assuming the covariance was a zero matrix)
             return mean, sdev
 
         num_features = self.X_train.shape[1]
-        X_query_covariance = np.atleast_3d(X_query_covariance[0]).reshape(
-            -1, num_features, num_features
+        X_covariance = (
+            np.atleast_3d(X_covariance).reshape(-1, num_features, num_features).copy()
         )
 
         # Kernel of the observations
@@ -250,7 +252,7 @@ class GaussianProcessLinearRegression(Task):
         variance = np.square(sdev)
         # With additional correction terms
         variance += np.trace(
-            self._amplitude(self.X_train) @ X_query_covariance, axis1=1, axis2=2
+            self._amplitude(self.X_train) @ X_covariance, axis1=1, axis2=2
         ).reshape(-1, 1)
         variance -= np.trace(
             self._amplitude(self.X_train)
@@ -258,7 +260,7 @@ class GaussianProcessLinearRegression(Task):
             @ (kernel_train_inv - np.outer(weights, weights))
             @ self.X_train
             @ self._amplitude(self.X_train)
-            @ X_query_covariance,
+            @ X_covariance,
             axis1=1,
             axis2=2,
         ).reshape(-1, 1)

@@ -1,4 +1,4 @@
-from typing import Dict, Tuple, Sequence
+from typing import Dict, Tuple, Sequence, Set
 
 import numpy as np
 
@@ -11,24 +11,32 @@ class ShapleyAttributionPolicy:
         self,
         active_agents: np.ndarray,
         baseline_agents: np.ndarray,
-        polynomial_degree: int,
         regression_task: Task,
     ):
         self.active_agents = active_agents
         self.baseline_agents = baseline_agents
-        self.degree = polynomial_degree
         self.num_active_agents = len(self.active_agents)
         self.num_baseline_agents = len(self.baseline_agents)
         self.num_agents = self.num_active_agents + self.num_baseline_agents
         self.regression_task = regression_task
 
-    def _value(self, X: np.ndarray, y: np.ndarray, indices: Sequence) -> Dict:
-        return self.regression_task.calculate_loss(X, y, list(indices))
-
-    def _weighted_avg_contributions(self, X: np.ndarray, y: np.ndarray) -> np.ndarray:
-        agent_combinations = chain_combinations(
-            self.active_agents, 1, self.degree, replace=True
+    def _value(self, X: np.ndarray, y: np.ndarray, indices: Sequence, **kwargs) -> Dict:
+        indices = list(indices)
+        return self.regression_task.calculate_loss(
+            X[:, indices], y, list(indices), **kwargs
         )
+
+    def _marginal_contribution(
+        self, X: np.ndarray, y: np.ndarray, excl: Set, incl: Set, **kwargs
+    ) -> float:
+        return self._value(X, y, list(excl), **kwargs) - self._value(
+            X, y, list(incl), **kwargs
+        )
+
+    def _weighted_avg_contributions(
+        self, X: np.ndarray, y: np.ndarray, X_covariance: np.ndarray
+    ) -> np.ndarray:
+        agent_combinations = chain_combinations(self.active_agents, 1, 1, replace=True)
 
         marginal_contributions = []
         for agent in self.active_agents:
@@ -57,9 +65,13 @@ class ShapleyAttributionPolicy:
                     if set(c).issubset(set(combination))
                 }
 
-                marginal_contribution = self._value(
-                    X, y, coalition_agents
-                ) - self._value(X, y, coalition_agents.union(agent))
+                marginal_contribution = self._marginal_contribution(
+                    X,
+                    y,
+                    coalition_agents,
+                    coalition_agents.union({agent}),
+                    X_covariance=X_covariance,
+                )
 
                 coalition_weight = (
                     np.math.factorial(coalition_size)
@@ -74,11 +86,21 @@ class ShapleyAttributionPolicy:
             marginal_contributions.append(agent_marginal_contributions)
         return np.array(marginal_contributions).sum(axis=1)
 
-    def run(self, X: np.ndarray, y: np.ndarray) -> Tuple:
-        contributions = self._weighted_avg_contributions(X, y)
+    def run(
+        self,
+        X: np.ndarray,
+        y: np.ndarray,
+        payment: float,
+        X_covariance: np.ndarray = None,
+    ) -> Tuple:
+        contributions = self._weighted_avg_contributions(X, y, X_covariance)
         grand_coalition_contribution = self._marginal_contribution(
-            X, y, self.baseline_agents, np.arange(self.num_agents)
+            X,
+            y,
+            self.baseline_agents,
+            np.arange(self.num_agents),
+            X_covariance=X_covariance,
         )
         allocations = safe_divide(contributions, grand_coalition_contribution)
-        # payments = contributions * len(X) * payment
-        return contributions, allocations
+        payments = contributions * len(X) * payment
+        return contributions, allocations, payments

@@ -3,14 +3,19 @@ from enum import Enum
 import numpy as np
 
 from common.utils import chain_combinations
-from market.task import MaximumLikelihoodLinearRegression as MLE  # , LinearGPRegression
+from market.task import (
+    MaximumLikelihoodLinearRegression,
+    BayesianLinearRegression,
+    GaussianProcessLinearRegression,
+)
 
 
 class ImputationMethod(Enum):
     no = "no"
     mean = "mean"
-    mle = "mle"
-    gp = "gp"
+    ols = "ols"
+    blr = "blr"
+    gpr = "gpr"
 
 
 class Imputer:
@@ -57,51 +62,53 @@ class MeanImputer(Imputer):
         return np.mean(self.X[:, i]), 0
 
 
-class LinearRegressionImputer(Imputer):
+class RegressionImputer(Imputer):
     def __init__(self, X: np.ndarray, y: np.ndarray):
         super().__init__(X=X, y=y)
-        self._coefficient_estimates = {}
-        self._precalculate_coefficient_estimates()
+        self._fitted_regression_tasks = {}
+        self._prefit_regression_tasks()
+        self.deterministic = False
 
-    def _precalculate_coefficient_estimates(self):
+    def _prefit_regression_tasks(self):
         for i in self._indices[1:]:  # No need to predict the dummy variable
             for c in chain_combinations(
                 set(self._indices[1:]) - {i}, 1, len(self._indices) - 1
             ):
                 feature_indices = (0,) + c
                 X, y = self.X[:, feature_indices], self.X[:, i]
-                self._coefficient_estimates[(i, feature_indices)] = MLE._posterior_mean(
-                    X, y
-                )
+                task = self.regression_task()
+                indices = np.arange(X.shape[1])
+                task.fit(X, y, indices=indices)
+                self._fitted_regression_tasks[(i, feature_indices)] = task
 
     def _impute(self, i: int, mean: np.ndarray, not_missing: np.ndarray):
-        coefficient_estimates = self._coefficient_estimates[(i, tuple(not_missing))]
+        task = self._fitted_regression_tasks[(i, tuple(not_missing))]
+        X = mean[:, not_missing]
+        indices = np.arange(X.shape[1])
+        predictive_mean, predictive_sdev = task.predict(X, indices=indices)
+        if self.deterministic:
+            return predictive_mean, 0
+        return predictive_mean, predictive_sdev
+
+
+class OlsLinearRegressionImputer(RegressionImputer):
+    def __init__(self, X: np.ndarray, y: np.ndarray):
+        self.regression_task = MaximumLikelihoodLinearRegression
+        super().__init__(X=X, y=y)
         # No uncertainty estimates provided by this imputation method.
-        return mean[:, not_missing] @ coefficient_estimates, 0
+        self.deterministic = True
 
 
-class GaussianProcessImputer(Imputer):
+class BayesianLinearRegressionImputer(RegressionImputer):
     def __init__(self, X: np.ndarray, y: np.ndarray):
+        self.regression_task = BayesianLinearRegression
         super().__init__(X=X, y=y)
-        self._noise_variances = {}
-        self._precalculate_coefficient_estimates()
 
-    def _precalculat_noise_variances(self):
-        for i in self._indices[1:]:  # No need to predict the dummy variable
-            for c in chain_combinations(
-                set(self._indices[1:]) - {i}, 1, len(self._indices) - 1
-            ):
-                feature_indices = (0,) + c
-                X, y = self.X[:, feature_indices], self.X[:, i]
-                self._noise_variances[(i, feature_indices)] = 1
 
-    def _impute(self, i: int, mean: np.ndarray, not_missing: np.ndarray):
-        noise_precision = self._noise_precisions[(i, tuple(not_missing))]
-        gp = LinearGPRegression(noise_precision)
-        mean, sdev = gp.posterior(
-            self.X[:, not_missing], self.X[:, i], mean[:, not_missing]
-        )
-        return mean, np.square(sdev)
+class GaussianProcessLinearRegressionImputer(RegressionImputer):
+    def __init__(self, X: np.ndarray, y: np.ndarray):
+        self.regression_task = GaussianProcessLinearRegression
+        super().__init__(X=X, y=y)
 
 
 def imputer_factory(X: np.ndarray, y: np.ndarray, method: ImputationMethod) -> Imputer:
@@ -117,7 +124,8 @@ def imputer_factory(X: np.ndarray, y: np.ndarray, method: ImputationMethod) -> I
     class_map = {
         ImputationMethod.no: NoImputer,
         ImputationMethod.mean: MeanImputer,
-        ImputationMethod.mle: LinearRegressionImputer,
-        ImputationMethod.gp: GaussianProcessImputer,
+        ImputationMethod.ols: OlsLinearRegressionImputer,
+        ImputationMethod.blr: BayesianLinearRegressionImputer,
+        ImputationMethod.gpr: GaussianProcessLinearRegressionImputer,
     }
     return class_map[method](X, y)

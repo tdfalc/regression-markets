@@ -8,6 +8,7 @@ from scipy import stats
 
 
 from market.impute import imputer_factory, ImputationMethod
+from market.task import GaussianProcessLinearRegression
 from common.log import create_logger
 
 
@@ -30,10 +31,10 @@ if __name__ == "__main__":
     missing_probs = np.array([0, 0, 0, 0.5])
 
     methods = [
-        ImputationMethod.no,
-        ImputationMethod.mean,
-        ImputationMethod.mle,
-        # ImputationMethod.gp,
+        # ImputationMethod.no,
+        # ImputationMethod.mean,
+        ImputationMethod.blr,
+        # ImputationMethod.gpr,
     ]
 
     losses = {
@@ -55,15 +56,10 @@ if __name__ == "__main__":
         X_train, X_test = X[:test_idx], X[test_idx:]
         y_train, y_test = y[:test_idx], y[test_idx:]
 
-        prior_mean = np.zeros(X.shape[1])
-        prior_covariance = np.eye(X.shape[1]) / regularization
-        posterior_covariance = np.linalg.inv(
-            (1 / noise_variance) * X_train.T @ X_train + np.linalg.inv(prior_covariance)
-        )
-        posterior_mean = posterior_covariance @ (
-            (1 / noise_variance) * X_train.T @ y_train
-            + np.linalg.inv(prior_covariance) @ prior_mean.reshape(-1, 1)
-        )
+        regression_task = GaussianProcessLinearRegression()
+        indices = np.arange(X_train.shape[1])
+
+        regression_task.fit(X_train, y_train, indices)
 
         missing_indicator = (
             np.random.rand(len(X_test), len(missing_probs)) < missing_probs
@@ -74,16 +70,15 @@ if __name__ == "__main__":
         for i in range(len(X_test) - 1):
             x_test = X_test[i : i + 1]
             for method, imputer in zip(methods, imputers):
-                x_test_imputed, _ = imputer.impute(x_test, missing_indicator[i])
-                predictive_mean = (x_test_imputed @ posterior_mean).ravel()
-                predictive_sdev = (
-                    x_test_imputed @ posterior_covariance @ x_test_imputed.T
-                    + noise_variance
-                ).ravel() ** 0.5
-                losses[method][i, sample : sample + 1] = (
-                    -stats.norm(loc=predictive_mean, scale=predictive_sdev)
-                    .logpdf(y_test[i])
-                    .ravel()
+                x_imputed_mean, x_imputed_covariance = imputer.impute(
+                    x_test, missing_indicator[i]
+                )
+                # print(method, x_imputed_covariance)
+                losses[method][i, sample : sample + 1] = regression_task.calculate_loss(
+                    x_imputed_mean,
+                    y_test[i],
+                    indices,
+                    X_covariance=x_imputed_covariance,
                 )
 
     fig, ax = plt.subplots()
