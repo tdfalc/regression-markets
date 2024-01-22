@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from scipy import stats
 
 
-from market.impute import MeanImputer, LinearRegressionImputer
+from market.impute import imputer_factory, ImputationMethod
 from common.log import create_logger
 
 
@@ -29,10 +29,17 @@ if __name__ == "__main__":
 
     missing_probs = np.array([0, 0, 0, 0.5])
 
-    loss_orig = np.zeros((sample_size - test_idx - 1, num_samples))
-    loss_meanimpute = np.zeros((sample_size - test_idx - 1, num_samples))
-    loss_linregimpute = np.zeros((sample_size - test_idx - 1, num_samples))
-    loss_gp = np.zeros((sample_size - test_idx - 1, num_samples))
+    methods = [
+        ImputationMethod.no,
+        ImputationMethod.mean,
+        ImputationMethod.mle,
+        # ImputationMethod.gp,
+    ]
+
+    losses = {
+        method: np.zeros((sample_size - test_idx - 1, num_samples))
+        for method in methods
+    }
 
     for sample in tqdm(range(num_samples)):
         rho = 0.6
@@ -62,74 +69,27 @@ if __name__ == "__main__":
             np.random.rand(len(X_test), len(missing_probs)) < missing_probs
         )
 
-        mean_imputer = MeanImputer(X_train, y_train)
-        linreg_imputer = LinearRegressionImputer(X_train, y_train)
+        imputers = [imputer_factory(X_train, y_train, method) for method in (methods)]
 
         for i in range(len(X_test) - 1):
-            # Assume no missing valuez
             x_test = X_test[i : i + 1]
-            predictive_mean = (x_test @ posterior_mean).ravel()
-            predictive_sdev = (
-                x_test @ posterior_covariance @ x_test.T + noise_variance
-            ).ravel() ** 0.5
-            loss_orig[i, sample : sample + 1] = (
-                -stats.norm(
-                    loc=predictive_mean,
-                    scale=predictive_sdev,
+            for method, imputer in zip(methods, imputers):
+                x_test_imputed, _ = imputer.impute(x_test, missing_indicator[i])
+                predictive_mean = (x_test_imputed @ posterior_mean).ravel()
+                predictive_sdev = (
+                    x_test_imputed @ posterior_covariance @ x_test_imputed.T
+                    + noise_variance
+                ).ravel() ** 0.5
+                losses[method][i, sample : sample + 1] = (
+                    -stats.norm(loc=predictive_mean, scale=predictive_sdev)
+                    .logpdf(y_test[i])
+                    .ravel()
                 )
-                .logpdf(y_test[i])
-                .ravel()
-            )
-
-            # Mean imputation
-            x_test_mean_impute, _ = mean_imputer.impute(x_test, missing_indicator[i])
-            predictive_mean = (x_test_mean_impute @ posterior_mean).ravel()
-            predictive_sdev = (
-                x_test_mean_impute @ posterior_covariance @ x_test_mean_impute.T
-                + noise_variance
-            ).ravel() ** 0.5
-            loss_meanimpute[i, sample : sample + 1] = (
-                -stats.norm(loc=predictive_mean, scale=predictive_sdev)
-                .logpdf(y_test[i])
-                .ravel()
-            )
-
-            # Linear regression imputation
-            x_test_linregimpute, _ = linreg_imputer.impute(x_test, missing_indicator[i])
-            predictive_mean = (x_test_linregimpute @ posterior_mean).ravel()
-            predictive_sdev = (
-                x_test_linregimpute @ posterior_covariance @ x_test_linregimpute.T
-                + noise_variance
-            ).ravel() ** 0.5
-            loss_linregimpute[i, sample : sample + 1] = (
-                -stats.norm(loc=predictive_mean, scale=predictive_sdev)
-                .logpdf(y_test[i])
-                .ravel()
-            )
-
-            # Gaussian process imputation
-            # # GP regression imputation
-            u_mean, u_cov = gp_imputer.impute(x_test, missing_indicator[i])
-            gp = LinearGP(1 / noise_variance)
-            pred_mean, pred_sdev = gp.posterior(
-                X_train,
-                y_train,
-                u_mean,
-                query_covariance=np.expand_dims(u_cov, axis=-1),
-            )
-            loss_gp[i, sample : sample + 1] = (
-                -stats.norm(
-                    loc=pred_mean.ravel()[0],
-                    scale=pred_sdev.ravel()[0],
-                )
-                .logpdf(y_test[i])
-                .ravel()
-            )
 
     fig, ax = plt.subplots()
-    num_runs = np.arange(len(loss_linregimpute)) + 1
-    ax.plot(loss_orig.cumsum(axis=0).mean(axis=1) / num_runs)
-    ax.plot(loss_meanimpute.cumsum(axis=0).mean(axis=1) / num_runs)
-    ax.plot(loss_linregimpute.cumsum(axis=0).mean(axis=1) / num_runs)
-    ax.plot(loss_gp.cumsum(axis=0).mean(axis=1) / num_runs)
+
+    for method, loss in losses.items():
+        num_runs = np.arange(len(loss)) + 1
+        ax.plot(loss.cumsum(axis=0).mean(axis=1) / num_runs)
+
     fig.savefig(savedir, dpi=300)
