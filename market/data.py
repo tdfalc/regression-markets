@@ -5,9 +5,9 @@ class BatchData:
     def __init__(
         self,
         dummy_feature: np.ndarray,
-        central_agent_features: np.ndarray,
         support_agent_features: np.ndarray,
         target_signal: np.ndarray,
+        central_agent_features: np.ndarray = None,
         test_frac: float = 0,
     ):
         """Instantiate `MarketData`.
@@ -25,7 +25,11 @@ class BatchData:
         self.support_agent_features = support_agent_features
         self.target_signal = target_signal
 
-        self.num_central_agent_features = self.central_agent_features.shape[1]
+        self.num_central_agent_features = (
+            self.central_agent_features.shape[1]
+            if self.central_agent_features is not None
+            else 0
+        )
         self.num_support_agent_features = self.support_agent_features.shape[1]
 
         self.X = self._build_design_matrix()
@@ -37,15 +41,19 @@ class BatchData:
         self._split_data()
 
     def _build_design_matrix(self):
-        market_features = np.hstack(
-            [self.central_agent_features, self.support_agent_features]
-        )
-        return np.hstack([self.dummy_feature, market_features])
+        market_features = self.support_agent_features
+        if self.central_agent_features is not None:
+            market_features = np.column_stack(
+                [self.central_agent_features, market_features]
+            )
+        return np.column_stack([self.dummy_feature, market_features])
 
     def _set_agent_indices(self):
         central_agents = set(np.arange(self.num_central_agent_features) + 1)
         support_agents = set(
-            np.arange(self.num_support_agent_features) + max(central_agents) + 1
+            np.arange(self.num_support_agent_features)
+            + max(central_agents, default=0)
+            + 1
         )
         self.active_agents = support_agents
         self.baseline_agents = set([0]).union(

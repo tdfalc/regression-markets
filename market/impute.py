@@ -8,6 +8,8 @@ from market.task import (
     BayesianLinearRegression,
     GaussianProcessLinearRegression,
 )
+from market.data import BatchData
+from market.policy import ShapleyAttributionPolicy
 
 
 class ImputationMethod(Enum):
@@ -19,10 +21,16 @@ class ImputationMethod(Enum):
 
 
 class Imputer:
-    def __init__(self, X: np.ndarray, y: np.ndarray):
-        self.X = X
-        self.y = y
-        self._indices = np.arange(self.X.shape[1])
+    def __init__(self, market_data: BatchData):
+        self.market_data = market_data
+        self.X_train = self.market_data.X_train
+        self.y_train = self.market_data.y_train
+        self.num_central_agent_features = self.market_data.num_central_agent_features
+        self._indices = np.arange(self.X_train.shape[1])
+        self._support_agent_indices = self._indices[
+            1 + self.num_central_agent_features :
+        ]
+        self.has_secondary_market = False
 
     def _impute(self, i: int, mean: np.ndarray, not_missing: np.ndarray):
         raise NotImplementedError
@@ -40,78 +48,111 @@ class Imputer:
         # Initialise covariance to zero, as only some methods will provide
         # uncertainty estimates for the imputation.
         mean, covariance = x.copy(), np.eye(x.shape[1]) * 0
-        for i in self._indices[missing_indicator]:
-            not_missing = self._indices[~missing_indicator]
-            mean[:, i], covariance[i, i] = self._impute(i, mean, not_missing)
+        # Loop through missing features.
+        for i in self._support_agent_indices[missing_indicator]:
+            not_missing = self._support_agent_indices[~missing_indicator]
+            support_indicies = np.append(0, not_missing)
+            mean[:, i], covariance[i, i] = self._impute(i, mean, support_indicies)
         return mean, covariance
 
 
 class NoImputer(Imputer):
-    def __init__(self, X: np.ndarray, y: np.ndarray):
-        super().__init__(X=X, y=y)
+    def __init__(self, market_data: BatchData):
+        super().__init__(market_data=market_data)
 
     def _impute(self, i: int, mean: np.ndarray, *_):
         return mean[:, i], 0
 
 
 class MeanImputer(Imputer):
-    def __init__(self, X: np.ndarray, y: np.ndarray):
-        super().__init__(X=X, y=y)
+    def __init__(self, market_data: BatchData):
+        super().__init__(market_data=market_data)
 
     def _impute(self, i: int, *_):
-        return np.mean(self.X[:, i]), 0
+        return np.mean(self.X_train[:, i]), 0
 
 
 class RegressionImputer(Imputer):
-    def __init__(self, X: np.ndarray, y: np.ndarray):
-        super().__init__(X=X, y=y)
+    def __init__(self, market_data: BatchData):
+        super().__init__(market_data=market_data)
         self._fitted_regression_tasks = {}
         self._prefit_regression_tasks()
         self.deterministic = False
+        self.has_secondary_market = True
 
     def _prefit_regression_tasks(self):
-        for i in self._indices[1:]:  # No need to predict the dummy variable
-            for c in chain_combinations(
-                set(self._indices[1:]) - {i}, 1, len(self._indices) - 1
-            ):
-                feature_indices = (0,) + c
-                X, y = self.X[:, feature_indices], self.X[:, i]
-                task = self.regression_task()
-                indices = np.arange(X.shape[1])
-                task.fit(X, y, indices=indices)
-                self._fitted_regression_tasks[(i, feature_indices)] = task
+        # We make the assumption that central agent features are never missing
+        # and are not used the secondary market to impute missing features.
+        for i in self._support_agent_indices:
+            regression_task = self.regression_task()
+            central_agent_indices = range(1, self.num_central_agent_features + 1)
+            X = np.delete(self.X_train, [i] + list(central_agent_indices), axis=1)
+            y = self.X_train[:, [i]]
 
-    def _impute(self, i: int, mean: np.ndarray, not_missing: np.ndarray):
-        task = self._fitted_regression_tasks[(i, tuple(not_missing))]
-        X = mean[:, not_missing]
+            for c in chain_combinations(set(np.arange(X.shape[1])), 1, X.shape[1]):
+                regression_task.fit(X, y, indices=c)
+            self._fitted_regression_tasks[i] = regression_task
+
+    def _impute(self, i: int, mean: np.ndarray, support_indicies: np.ndarray):
+        regression_task = self._fitted_regression_tasks[i]
+        X = mean[:, support_indicies]
         indices = np.arange(X.shape[1])
-        predictive_mean, predictive_sdev = task.predict(X, indices=indices)
+        predictive_mean, predictive_sdev = regression_task.predict(X, indices=indices)
         if self.deterministic:
             return predictive_mean, 0
         return predictive_mean, predictive_sdev
 
+    def clear_secondary_market(
+        self, x: np.ndarray, missing_indicator: np.ndarray, primary_payments: np.ndarray
+    ):
+        payments = np.zeros(self.X_train.shape[1])
+        if np.sum(missing_indicator) == 0:  # No missing features
+            return payments[1 + self.num_central_agent_features :]
+        for i in self._support_agent_indices[missing_indicator]:
+            payment = primary_payments[i - 1 - self.num_central_agent_features]
+            not_missing = self._support_agent_indices[~missing_indicator]
+            regression_task = self._fitted_regression_tasks[i]
+            market_data = BatchData(
+                dummy_feature=x[:, [0]],
+                central_agent_features=None,
+                support_agent_features=x[:, not_missing],
+                target_signal=x[:, [i]],
+                test_frac=1,
+            )
+            X_test, y_test = market_data.X_test, market_data.y_test
+            attribution_policy = ShapleyAttributionPolicy(
+                market_data.active_agents,
+                market_data.baseline_agents,
+                regression_task=regression_task,
+            )
+
+            _, allocations, _ = attribution_policy.run(X_test, y_test, payment=payment)
+            for k, j in enumerate(not_missing):
+                payments[j] += allocations[k] * payment
+        return payments[1 + self.num_central_agent_features :]
+
 
 class OlsLinearRegressionImputer(RegressionImputer):
-    def __init__(self, X: np.ndarray, y: np.ndarray):
+    def __init__(self, market_data: BatchData):
         self.regression_task = MaximumLikelihoodLinearRegression
-        super().__init__(X=X, y=y)
+        super().__init__(market_data=market_data)
         # No uncertainty estimates provided by this imputation method.
         self.deterministic = True
 
 
 class BayesianLinearRegressionImputer(RegressionImputer):
-    def __init__(self, X: np.ndarray, y: np.ndarray):
+    def __init__(self, market_data: BatchData):
         self.regression_task = BayesianLinearRegression
-        super().__init__(X=X, y=y)
+        super().__init__(market_data=market_data)
 
 
 class GaussianProcessLinearRegressionImputer(RegressionImputer):
-    def __init__(self, X: np.ndarray, y: np.ndarray):
+    def __init__(self, market_data: BatchData):
         self.regression_task = GaussianProcessLinearRegression
-        super().__init__(X=X, y=y)
+        super().__init__(market_data=market_data)
 
 
-def imputer_factory(X: np.ndarray, y: np.ndarray, method: ImputationMethod) -> Imputer:
+def imputer_factory(market_data: BatchData, method: ImputationMethod) -> Imputer:
     """Return an Imputer based on the selected method.
 
     Args:
@@ -128,4 +169,4 @@ def imputer_factory(X: np.ndarray, y: np.ndarray, method: ImputationMethod) -> I
         ImputationMethod.blr: BayesianLinearRegressionImputer,
         ImputationMethod.gpr: GaussianProcessLinearRegressionImputer,
     }
-    return class_map[method](X, y)
+    return class_map[method](market_data=market_data)

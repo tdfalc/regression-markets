@@ -7,7 +7,7 @@ Python implemention of [Towards Regression Markets with Capricious Data Streams]
 * Transition to Gaussian Process regression analyses.
 * Currently only explores out-of-sample market.
 
-If you find this useful in your work, we kindly request that you cite the following publication(s):
+If you find this useful in your work, we kindly request that you cite the following publication:
 
 ```
 @misc{falconer2023bayesian,

@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from scipy import stats
 
 
-from market.impute import imputer_factory, ImputationMethod
+from market.impute import imputer_factory, ImputationMethod, RegressionImputer
 from market.task import GaussianProcessLinearRegression, BayesianLinearRegression
 from market.data import BatchData
 from market.policy import ShapleyAttributionPolicy
@@ -31,11 +31,11 @@ if __name__ == "__main__":
     num_feats = len(coeffs)
     payment = 1
 
-    missing_probs = np.array([0, 0, 0, 0.3])
+    missing_probs = np.array([0, 0.9])
 
     methods = [
-        ImputationMethod.no,
-        ImputationMethod.mean,
+        # ImputationMethod.no,
+        # ImputationMethod.mean,
         ImputationMethod.ols,
         # ImputationMethod.blr,
         # ImputationMethod.gpr,
@@ -46,6 +46,7 @@ if __name__ == "__main__":
         X = np.random.multivariate_normal(
             [0, 0, 0], [[1, 0, 0], [0, 1, rho], [0, rho, 1]], size=sample_size
         )
+
         X = np.column_stack((np.ones(len(X)).reshape(-1, 1), X))
         y = (
             (X * coeffs).sum(axis=1)
@@ -68,38 +69,22 @@ if __name__ == "__main__":
 
         num_features = X.shape[1]
         for indices in chain_combinations(np.arange(num_features), 1, num_features):
-            regression_task.fit(X, y, indices)
+            regression_task.fit(X_train, y_train, indices)
 
         missing_indicator = (
             np.random.rand(len(X_test), len(missing_probs)) < missing_probs
         )
 
-        imputers = [imputer_factory(X_train, y_train, method) for method in (methods)]
+        imputers = [imputer_factory(market_data, method) for method in (methods)]
 
-        losses = {
-            method: np.zeros((sample_size - test_idx - 1, 1)) for method in methods
-        }
+        def zeros(size: int):
+            return np.zeros((sample_size - test_idx - 1, size))
 
-        market_outcomes = {
-            "contributions": {
-                method: np.zeros(
-                    (sample_size - test_idx - 1, market_data.num_support_agent_features)
-                )
-                for method in methods
-            },
-            "allocations": {
-                method: np.zeros(
-                    (sample_size - test_idx - 1, market_data.num_support_agent_features)
-                )
-                for method in methods
-            },
-            "payments": {
-                method: np.zeros(
-                    (sample_size - test_idx - 1, market_data.num_support_agent_features)
-                )
-                for method in methods
-            },
-        }
+        losses = {method: zeros(1) for method in methods}
+
+        num_features = market_data.num_support_agent_features
+        primary_market_payments = {method: zeros(num_features) for method in methods}
+        secondary_market_payments = {method: zeros(num_features) for method in methods}
 
         for i in range(len(X_test) - 1):
             x_test = X_test[i : i + 1]
@@ -107,6 +92,7 @@ if __name__ == "__main__":
                 x_imputed_mean, x_imputed_covariance = imputer.impute(
                     x_test, missing_indicator[i]
                 )
+
                 losses[method][i, :] = regression_task.calculate_loss(
                     x_imputed_mean,
                     y_test[i],
@@ -120,18 +106,26 @@ if __name__ == "__main__":
                     regression_task=regression_task,
                 )
 
-                (
-                    market_outcomes["contributions"][method][i, :],
-                    market_outcomes["allocations"][method][i, :],
-                    market_outcomes["payments"][method][i, :],
-                ) = attribution_policy.run(
+                (_, _, primary_payments) = attribution_policy.run(
                     x_imputed_mean,
                     y_test[i],
                     X_covariance=x_imputed_covariance,
                     payment=payment,
                 )
 
-        return losses, market_outcomes
+                if imputer.has_secondary_market:
+                    secondary_payments = imputer.clear_secondary_market(
+                        x_test, missing_indicator[i], primary_payments
+                    )
+
+                for j, is_missing in enumerate(missing_indicator[i]):
+                    if is_missing:
+                        primary_payments[j] = 0
+
+                primary_market_payments[method][i, :] = primary_payments
+                secondary_market_payments[method][i, :] = secondary_payments
+
+        return losses, primary_market_payments, secondary_market_payments
 
     with tqdm_joblib(
         tqdm(desc="Simulations", total=num_samples, position=2, leave=False)
@@ -140,7 +134,7 @@ if __name__ == "__main__":
             delayed(_run_experiment)() for _ in range(num_samples)
         )
 
-        losses, market_outcomes = list(zip(*results))
+        losses, primary_market_payments, secondary_market_payments = list(zip(*results))
 
     fig, ax = plt.subplots()
 
@@ -158,15 +152,33 @@ if __name__ == "__main__":
 
     metric = "payments"
     for i, method in enumerate(methods):
-        payments = np.stack([o[metric][method] for o in market_outcomes])
+        primary_payments = np.stack([o[method] for o in primary_market_payments])
+        secondary_payments = np.stack([o[method] for o in secondary_market_payments])
         num_runs = 1  # np.arange(payments.shape[1]) + 1
         for j in (0, 1):
             ax.plot(
-                payments.cumsum(axis=1).mean(axis=0)[:, j] / num_runs,
+                primary_payments.cumsum(axis=1).mean(axis=0)[:, j] / num_runs,
                 label=method if j == 0 else "",
-                color=f"C{i}",
+                color=f"C0",
                 ls="solid" if j == 0 else "dashed",
             )
+
+            ax.plot(
+                secondary_payments.cumsum(axis=1).mean(axis=0)[:, j] / num_runs,
+                label=method if j == 0 else "",
+                color=f"C1",
+                ls="solid" if j == 0 else "dashed",
+            )
+
+            # ax.plot(
+            #     (primary_payments + secondary_payments)
+            #     .cumsum(axis=1)
+            #     .mean(axis=0)[:, j]
+            #     / num_runs,
+            #     label=method if j == 0 else "",
+            #     color=f"C1",
+            #     ls="solid" if j == 0 else "dashed",
+            # )
 
     ax.set_xlabel("Iteration")
     ax.set_ylabel("Expected Payment")

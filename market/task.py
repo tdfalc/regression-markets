@@ -90,7 +90,7 @@ class MaximumLikelihoodLinearRegression(WeightSpaceTask):
         self.set_posterior_coefficients(indices, posterior_coefficients)
 
         # Calculate maximum likelihood estimate for the noise variance.
-        predictive_mean = self._predictive_mean(X[:, indices], posterior_coefficients)
+        predictive_mean = self._predictive_mean(X, posterior_coefficients)
         noise_variance = np.mean((predictive_mean - y) ** 2)
         self.set_posterior_noise_variance(indices, noise_variance)
 
