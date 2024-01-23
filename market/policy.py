@@ -22,9 +22,7 @@ class ShapleyAttributionPolicy:
 
     def _value(self, X: np.ndarray, y: np.ndarray, indices: Sequence, **kwargs) -> Dict:
         indices = list(indices)
-        return self.regression_task.calculate_loss(
-            X[:, indices], y, list(indices), **kwargs
-        )
+        return self.regression_task.calculate_loss(X[:, indices], y, indices, **kwargs)
 
     def _marginal_contribution(
         self, X: np.ndarray, y: np.ndarray, excl: Set, incl: Set, **kwargs

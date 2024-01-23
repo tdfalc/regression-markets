@@ -21,17 +21,17 @@ if __name__ == "__main__":
     savedir = Path(__file__).parent / "docs/sim13-capricious-data-streams"
     os.makedirs(savedir, exist_ok=True)
 
-    sample_size = 5000
+    sample_size = 500
     test_frac = 0.04
     test_idx = int(sample_size * (1 - test_frac))
-    noise_variance = 0.5
-    num_samples = 500
+    noise_variance = 1
+    num_samples = 100
     regularization = 1e-5
-    coeffs = np.array([0, 0.9, 0.9, -0.9])
+    coeffs = np.array([0, 0.9, 0.9, 0.9])
     num_feats = len(coeffs)
     payment = 1
 
-    missing_probs = np.array([0, 0, 0, 0.5])
+    missing_probs = np.array([0, 0, 0, 0.3])
 
     methods = [
         ImputationMethod.no,
@@ -42,7 +42,7 @@ if __name__ == "__main__":
     ]
 
     def _run_experiment():
-        rho = 0.6
+        rho = 0.999
         X = np.random.multivariate_normal(
             [0, 0, 0], [[1, 0, 0], [0, 1, rho], [0, rho, 1]], size=sample_size
         )

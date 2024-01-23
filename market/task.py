@@ -10,6 +10,7 @@ from sklearn.gaussian_process.kernels import WhiteKernel, DotProduct
 from sklearn.exceptions import ConvergenceWarning
 
 
+## TODO: Remove requirement to pass both X and indices when calling fit and predict.
 class Task:
     def __init__(self):
         self._noise_variances = {}
@@ -163,6 +164,7 @@ class BayesianLinearRegression(WeightSpaceTask):
 class GaussianProcessLinearRegression(Task):
     def __init__(self):
         super().__init__()
+        self._observations = {}
 
     def _amplitude(self, X: np.ndarray):
         return np.eye(X.shape[1]) / 1e-5
@@ -177,7 +179,6 @@ class GaussianProcessLinearRegression(Task):
         indices: Sequence,
         n_restarts_optimizer: int = 0,
     ):
-        self.X_train, self.y_train = X, y
         kernel = DotProduct(sigma_0_bounds=(1e-10, 1e-9)) + WhiteKernel()
         gp = GaussianProcessRegressor(
             kernel=kernel, n_restarts_optimizer=n_restarts_optimizer
@@ -185,24 +186,29 @@ class GaussianProcessLinearRegression(Task):
         with warnings.catch_warnings():
             # Ignore bounds warning for regularization parameter
             warnings.filterwarnings("ignore", category=ConvergenceWarning)
-            gp.fit(self.X_train, self.y_train)
+            gp.fit(X[:, indices], y)
         noise_variance = gp.kernel_.get_params()["k2__noise_level"]
         self.set_posterior_noise_variance(indices, noise_variance)
+        self._observations[tuple(indices)] = (X[:, indices], y)
 
     def _input_noise_free_posterior(
-        self, query_mean: np.ndarray, noise_variance: float
+        self,
+        X_train: np.ndarray,
+        y_train: np.ndarray,
+        query_mean: np.ndarray,
+        noise_variance: float,
     ) -> Tuple[np.ndarray, np.ndarray]:
         # Kernel of observations
-        kernel_train = self._kernel_fn(self.X_train, self.X_train)
-        kernel_train += noise_variance * np.eye(len(self.X_train))
+        kernel_train = self._kernel_fn(X_train, X_train)
+        kernel_train += noise_variance * np.eye(len(X_train))
         # Kernel of observations vs. query points
-        kernel_train_test = self._kernel_fn(self.X_train, query_mean)
+        kernel_train_test = self._kernel_fn(X_train, query_mean)
         # Kernel of query points
         kernel_test = self._kernel_fn(query_mean, query_mean)
         kernel_test += noise_variance * np.eye(len(query_mean))
         # Compute posterior
         solved = (np.linalg.inv(kernel_train) @ kernel_train_test).T
-        mean = solved @ self.y_train
+        mean = solved @ y_train
         covariance = kernel_test - solved @ kernel_train_test
         # For now we are only interested in the diagonal
         sdev = np.sqrt(covariance.diagonal().reshape(-1, 1))
@@ -228,38 +234,43 @@ class GaussianProcessLinearRegression(Task):
             Tuple[np.ndarray, np.ndarray]: mean and standard deviation of Gaussian posterior
                 predictive distribution.
         """
+        X_train, y_train = self._observations[tuple(indices)]
         noise_variance = self.get_posterior_noise_variance(indices)
-        mean, sdev = self._input_noise_free_posterior(X, noise_variance)
+        mean, sdev = self._input_noise_free_posterior(
+            X_train, y_train, X, noise_variance
+        )
+        ## TODO: Break out this job from this function.
+        X_covariance = X_covariance[:, indices][indices, :].copy()
         if X_covariance is None or np.count_nonzero(X_covariance) == 0:
             # If no covariance is provided, the noise-free posterior is returned
             # to avoid unecessary computations (i.e., we would get the same result
             # assuming the covariance was a zero matrix)
             return mean, sdev
 
-        num_features = self.X_train.shape[1]
+        num_features = X_train.shape[1]
         X_covariance = (
             np.atleast_3d(X_covariance).reshape(-1, num_features, num_features).copy()
         )
 
         # Kernel of the observations
-        kernel_train = self._kernel_fn(self.X_train, self.X_train)
-        kernel_train += noise_variance * np.eye(len(self.X_train))
+        kernel_train = self._kernel_fn(X_train, X_train)
+        kernel_train += noise_variance * np.eye(len(X_train))
         kernel_train_inv = np.linalg.inv(kernel_train)
         # Extract the weights applied to the kernel of the query points when computing
         # the posterior predictive mean
-        weights = kernel_train_inv @ self.y_train
+        weights = kernel_train_inv @ y_train
         # We can decompose the variance into that given by the noise-free posterior
         variance = np.square(sdev)
         # With additional correction terms
         variance += np.trace(
-            self._amplitude(self.X_train) @ X_covariance, axis1=1, axis2=2
+            self._amplitude(X_train) @ X_covariance, axis1=1, axis2=2
         ).reshape(-1, 1)
         variance -= np.trace(
-            self._amplitude(self.X_train)
-            @ self.X_train.T
+            self._amplitude(X_train)
+            @ X_train.T
             @ (kernel_train_inv - np.outer(weights, weights))
-            @ self.X_train
-            @ self._amplitude(self.X_train)
+            @ X_train
+            @ self._amplitude(X_train)
             @ X_covariance,
             axis1=1,
             axis2=2,
