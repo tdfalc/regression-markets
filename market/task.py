@@ -165,6 +165,7 @@ class GaussianProcessLinearRegression(Task):
     def __init__(self):
         super().__init__()
         self._observations = {}
+        self._gps = {}
 
     def _amplitude(self, X: np.ndarray):
         return np.eye(X.shape[1]) / 1e-5
@@ -190,6 +191,7 @@ class GaussianProcessLinearRegression(Task):
         noise_variance = gp.kernel_.get_params()["k2__noise_level"]
         self.set_posterior_noise_variance(indices, noise_variance)
         self._observations[tuple(indices)] = (X[:, indices], y)
+        self._gps[tuple(indices)] = gp
 
     def _input_noise_free_posterior(
         self,
@@ -236,9 +238,13 @@ class GaussianProcessLinearRegression(Task):
         """
         X_train, y_train = self._observations[tuple(indices)]
         noise_variance = self.get_posterior_noise_variance(indices)
-        mean, sdev = self._input_noise_free_posterior(
-            X_train, y_train, X, noise_variance
-        )
+
+        # Use sklearn GP for fast input noise-free inference.
+        # mean, sdev = self._input_noise_free_posterior(
+        #     X_train, y_train, X, noise_variance=noise_variance
+        # )
+        mean, sdev = self._gps[tuple(indices)].predict(X, return_std=True)
+        sdev = np.diag(sdev)
         ## TODO: Break out this job from this function.
         X_covariance = X_covariance[:, indices][indices, :].copy()
         if X_covariance is None or np.count_nonzero(X_covariance) == 0:

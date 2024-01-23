@@ -10,9 +10,10 @@ from scipy import stats
 from market.impute import imputer_factory, ImputationMethod, RegressionImputer
 from market.task import GaussianProcessLinearRegression, BayesianLinearRegression
 from market.data import BatchData
+from market.mechanism import Market
 from market.policy import ShapleyAttributionPolicy
 from common.log import create_logger
-from common.utils import tqdm_joblib, chain_combinations
+from common.utils import tqdm_joblib, cache
 
 if __name__ == "__main__":
     logger = create_logger(__name__)
@@ -21,167 +22,163 @@ if __name__ == "__main__":
     savedir = Path(__file__).parent / "docs/sim13-capricious-data-streams"
     os.makedirs(savedir, exist_ok=True)
 
-    sample_size = 500
-    test_frac = 0.04
+    cache_location = savedir / "cache"
+    os.makedirs(cache_location, exist_ok=True)
+
+    sample_size = 200
+    test_frac = 0.5
     test_idx = int(sample_size * (1 - test_frac))
-    noise_variance = 1
+    noise_variance = 0.5
     num_samples = 100
     regularization = 1e-5
     coeffs = np.array([0, 0.9, 0.9, 0.9])
     num_feats = len(coeffs)
     payment = 1
 
-    missing_probs = np.array([0, 0.9])
+    missing_probabilities = np.array([0, 0.5])
 
-    methods = [
-        # ImputationMethod.no,
-        # ImputationMethod.mean,
+    imputation_methods = [
+        ImputationMethod.no,
+        ImputationMethod.mean,
         ImputationMethod.ols,
-        # ImputationMethod.blr,
+        ImputationMethod.blr,
         # ImputationMethod.gpr,
     ]
 
-    def _run_experiment():
-        rho = 0.999
-        X = np.random.multivariate_normal(
-            [0, 0, 0], [[1, 0, 0], [0, 1, rho], [0, rho, 1]], size=sample_size
-        )
+    @cache(save_dir=cache_location, use_cache=True)
+    def _run_experiments():
+        def _run_experiment():
+            rho = 0.6
+            X = np.random.multivariate_normal(
+                [0, 0, 0], [[1, 0, 0], [0, 1, rho], [0, rho, 1]], size=sample_size
+            )
 
-        X = np.column_stack((np.ones(len(X)).reshape(-1, 1), X))
-        y = (
-            (X * coeffs).sum(axis=1)
-            + np.random.normal(0, noise_variance**0.5, size=sample_size)
-        ).reshape(-1, 1)
+            X = np.column_stack((np.ones(len(X)).reshape(-1, 1), X))
+            y = (
+                (X * coeffs).sum(axis=1)
+                + np.random.normal(0, noise_variance**0.5, size=sample_size)
+            ).reshape(-1, 1)
 
-        market_data = BatchData(
-            dummy_feature=X[:, [0]],
-            central_agent_features=X[:, [1]],
-            support_agent_features=X[:, 2:],
-            target_signal=y,
-            test_frac=test_frac,
-        )
+            market_data = BatchData(
+                dummy_feature=X[:, [0]],
+                central_agent_features=X[:, [1]],
+                support_agent_features=X[:, 2:],
+                target_signal=y,
+                test_frac=test_frac,
+            )
 
-        X_train, X_test = market_data.X_train, market_data.X_test
-        y_train, y_test = market_data.y_train, market_data.y_test
+            market = Market(market_data, GaussianProcessLinearRegression)
+            losses, primary_market_payments, secondary_market_payments = market.run(
+                imputation_methods=imputation_methods,
+                missing_probabilities=missing_probabilities,
+                payment=payment,
+            )
+            return losses, primary_market_payments, secondary_market_payments
 
-        regression_task = BayesianLinearRegression()  # needs to be gpr
-        indices = np.arange(X_train.shape[1])
+        with tqdm_joblib(
+            tqdm(desc="Simulations", total=num_samples, position=2, leave=False)
+        ) as _:
+            results = Parallel(n_jobs=-1)(
+                delayed(_run_experiment)() for _ in range(num_samples)
+            )
 
-        num_features = X.shape[1]
-        for indices in chain_combinations(np.arange(num_features), 1, num_features):
-            regression_task.fit(X_train, y_train, indices)
+        return list(zip(*results))
 
-        missing_indicator = (
-            np.random.rand(len(X_test), len(missing_probs)) < missing_probs
-        )
+    losses, primary_market_payments, secondary_market_payments = _run_experiments()
 
-        imputers = [imputer_factory(market_data, method) for method in (methods)]
+    label_map = {
+        ImputationMethod.no: "No-missing",
+        ImputationMethod.mean: "Mean imputation",
+        ImputationMethod.ols: "Deterministic imputation",
+        ImputationMethod.blr: "Probabilistic imputation",
+    }
 
-        def zeros(size: int):
-            return np.zeros((sample_size - test_idx - 1, size))
-
-        losses = {method: zeros(1) for method in methods}
-
-        num_features = market_data.num_support_agent_features
-        primary_market_payments = {method: zeros(num_features) for method in methods}
-        secondary_market_payments = {method: zeros(num_features) for method in methods}
-
-        for i in range(len(X_test) - 1):
-            x_test = X_test[i : i + 1]
-            for method, imputer in zip(methods, imputers):
-                x_imputed_mean, x_imputed_covariance = imputer.impute(
-                    x_test, missing_indicator[i]
-                )
-
-                losses[method][i, :] = regression_task.calculate_loss(
-                    x_imputed_mean,
-                    y_test[i],
-                    indices,
-                    X_covariance=x_imputed_covariance,
-                )
-
-                attribution_policy = ShapleyAttributionPolicy(
-                    active_agents=market_data.active_agents,
-                    baseline_agents=market_data.baseline_agents,
-                    regression_task=regression_task,
-                )
-
-                (_, _, primary_payments) = attribution_policy.run(
-                    x_imputed_mean,
-                    y_test[i],
-                    X_covariance=x_imputed_covariance,
-                    payment=payment,
-                )
-
-                if imputer.has_secondary_market:
-                    secondary_payments = imputer.clear_secondary_market(
-                        x_test, missing_indicator[i], primary_payments
-                    )
-
-                for j, is_missing in enumerate(missing_indicator[i]):
-                    if is_missing:
-                        primary_payments[j] = 0
-
-                primary_market_payments[method][i, :] = primary_payments
-                secondary_market_payments[method][i, :] = secondary_payments
-
-        return losses, primary_market_payments, secondary_market_payments
-
-    with tqdm_joblib(
-        tqdm(desc="Simulations", total=num_samples, position=2, leave=False)
-    ) as _:
-        results = Parallel(n_jobs=-1)(
-            delayed(_run_experiment)() for _ in range(num_samples)
-        )
-
-        losses, primary_market_payments, secondary_market_payments = list(zip(*results))
+    imputation_methods = [
+        ImputationMethod.no,
+        # ImputationMethod.mean,
+        ImputationMethod.ols,
+        ImputationMethod.blr,
+        # ImputationMethod.gpr,
+    ]
 
     fig, ax = plt.subplots()
 
-    for method in methods:
+    for method in imputation_methods:
+        # loss = np.stack([l[method] for l in losses]) / np.stack(
+        #     [l[ImputationMethod.no] for l in losses]
+        # )
         loss = np.stack([l[method] for l in losses])
-        num_runs = (np.arange(loss.shape[1]) + 1).reshape(-1, 1)
-        ax.plot(loss.cumsum(axis=1).mean(axis=0) / num_runs, label=method)
-    ax.set_xlabel("Iteration")
-    ax.set_ylabel("Expected Loss")
-    ax.legend()
 
+        num_runs = (np.arange(loss.shape[1]) + 1).reshape(-1, 1)
+        ax.plot(loss.cumsum(axis=1).mean(axis=0) / num_runs, label=label_map[method])
+    ax.set_xlabel("Iteration")
+    ax.set_ylabel("E[Negative Log Likelihood]")
+    ax.legend()
+    fig.tight_layout()
     fig.savefig(savedir / "losses", dpi=300)
 
-    fig, ax = plt.subplots()
+    fig, axs = plt.subplots(2, 2, figsize=(10, 6), sharey=True)
+
+    (axs1, axs2) = axs.flatten()[[0, 2]], axs.flatten()[[1, 3]]
+
+    markers = ["*", "o", "s", "x"]
 
     metric = "payments"
-    for i, method in enumerate(methods):
+    for i, method in enumerate(imputation_methods):
         primary_payments = np.stack([o[method] for o in primary_market_payments])
         secondary_payments = np.stack([o[method] for o in secondary_market_payments])
         num_runs = 1  # np.arange(payments.shape[1]) + 1
-        for j in (0, 1):
-            ax.plot(
-                primary_payments.cumsum(axis=1).mean(axis=0)[:, j] / num_runs,
-                label=method if j == 0 else "",
-                color=f"C0",
-                ls="solid" if j == 0 else "dashed",
-            )
 
-            ax.plot(
-                secondary_payments.cumsum(axis=1).mean(axis=0)[:, j] / num_runs,
-                label=method if j == 0 else "",
-                color=f"C1",
-                ls="solid" if j == 0 else "dashed",
-            )
+        j = 0
+        axs.flatten()[0].plot(
+            primary_payments.cumsum(axis=1).mean(axis=0)[:, j] / num_runs,
+            label=label_map[method] if j == 0 else "",
+            color=f"C{i}",
+            # marker=markers[i],
+        )
+        axs.flatten()[1].plot(
+            secondary_payments.cumsum(axis=1).mean(axis=0)[:, j] / num_runs,
+            label="",
+            color=f"C{i}",
+            # marker=markers[i],
+        )
 
-            # ax.plot(
-            #     (primary_payments + secondary_payments)
-            #     .cumsum(axis=1)
-            #     .mean(axis=0)[:, j]
-            #     / num_runs,
-            #     label=method if j == 0 else "",
-            #     color=f"C1",
-            #     ls="solid" if j == 0 else "dashed",
-            # )
+        j = 1
+        axs.flatten()[2].plot(
+            primary_payments.cumsum(axis=1).mean(axis=0)[:, j] / num_runs,
+            label=label_map[method] if j == 0 else "",
+            color=f"C{i}",
+            # marker=markers[i],
+        )
+        axs.flatten()[3].plot(
+            secondary_payments.cumsum(axis=1).mean(axis=0)[:, j] / num_runs,
+            label="",
+            color=f"C{i}",
+            # marker=markers[i],
+        )
 
-    ax.set_xlabel("Iteration")
-    ax.set_ylabel("Expected Payment")
-    ax.legend()
+        axs.flatten()[0].set_title("Agent 1 (p(missing) = 0)")
+        axs.flatten()[2].set_title("Agent 2 (p(missing) = 0.5)")
+        axs.flatten()[1].set_title("Agent 1 (p(missing) = 0)")
+        axs.flatten()[3].set_title("Agent 2 (p(missing) = 0.5)")
+
+    for ax in axs.flatten():
+        ax.grid()
+
+    axs.flatten()[0].set_ylabel("E[C. Revenue]")
+    axs.flatten()[2].set_ylabel("E[C. Revenue]")
+
+    axs.flatten()[2].set_xlabel("Time step")
+    axs.flatten()[3].set_xlabel("Time step")
+
+    axs.flatten()[0].legend()
+
+    fig.suptitle(
+        "          Primary Market                                                       Secondary Market",
+        y=0.97,
+        fontsize=14,
+    )
+
+    fig.tight_layout()
 
     fig.savefig(savedir / "payments", dpi=300)
