@@ -22,7 +22,7 @@ from market.task import (
 from market.policy import NllShapleyPolicy
 from market.mechanism import BatchMarket
 from common.log import create_logger
-from analytics.helpers import save_figure, get_julia_colors
+from analytics.helpers import save_figure, get_discrete_colors
 from common.utils import cache
 
 
@@ -266,7 +266,7 @@ def plot_acf(agents: Sequence, savedir):
         )
 
     fig, ax = plt.subplots(dpi=600, figsize=(3.6, 3.2))
-    colors = get_julia_colors()[:9]
+    colors = get_discrete_colors("viridis", 8)
 
     for i, wf in enumerate(agents):
         ax.plot(acf(raw_data[wf], length=50), c=colors[i], label=wf)
@@ -290,7 +290,7 @@ def plot_results(results: Dict, max_replications: int, savedir: Path):
     bar_width = 0.2
     metric = "allocations"
     hatches = ("//", "..")
-    colors = get_julia_colors()[:2]
+    colors = get_discrete_colors("viridis", 8)[:2]
 
     for policy in ("Shapley-Obs", "Shapley-Int"):
         fig, ax = plt.subplots(figsize=(3.6, 3.2), dpi=300)
@@ -309,9 +309,11 @@ def plot_results(results: Dict, max_replications: int, savedir: Path):
             # First we add total allocation bars
             positions = np.arange(len(allocations_before))
             ax.bar(
-                (positions - 1.5 * bar_width)[0]
-                if stage == "train"
-                else (positions - 0.5 * bar_width)[0],
+                (
+                    (positions - 1.5 * bar_width)[0]
+                    if stage == "train"
+                    else (positions - 0.5 * bar_width)[0]
+                ),
                 allocations_before[0],
                 bar_width,
                 color=color,
@@ -320,9 +322,11 @@ def plot_results(results: Dict, max_replications: int, savedir: Path):
             )
 
             ax.bar(
-                (positions - 1.5 * bar_width)[1:]
-                if stage == "train"
-                else (positions - 0.5 * bar_width)[1:],
+                (
+                    (positions - 1.5 * bar_width)[1:]
+                    if stage == "train"
+                    else (positions - 0.5 * bar_width)[1:]
+                ),
                 allocations_before[1:],
                 bar_width,
                 color=color,
@@ -331,9 +335,11 @@ def plot_results(results: Dict, max_replications: int, savedir: Path):
             )
 
             ax.bar(
-                (positions + 0.5 * bar_width)[1:]
-                if stage == "train"
-                else (positions + 1.5 * bar_width)[1:],
+                (
+                    (positions + 0.5 * bar_width)[1:]
+                    if stage == "train"
+                    else (positions + 1.5 * bar_width)[1:]
+                ),
                 allocations_after_agg[1:],
                 bar_width,
                 color=color,
@@ -348,16 +354,18 @@ def plot_results(results: Dict, max_replications: int, savedir: Path):
                     heights = np.zeros(len(allocations_before))
                     heights[0] = allocations_after[replicate]
                     ax.bar(
-                        (positions + 0.5 * bar_width)[0]
-                        if stage == "train"
-                        else (positions + 1.5 * bar_width)[0],
+                        (
+                            (positions + 0.5 * bar_width)[0]
+                            if stage == "train"
+                            else (positions + 1.5 * bar_width)[0]
+                        ),
                         heights[0],
                         bar_width,
                         color=color,
                         edgecolor="k",
                         bottom=bottom,
                         hatch=hatch,
-                        alpha=0.7 if i > 0 else 1
+                        alpha=0.7 if i > 0 else 1,
                         # lw=2,
                     )
                     bottom += heights[0]
@@ -374,9 +382,11 @@ def plot_results(results: Dict, max_replications: int, savedir: Path):
 
             else:
                 ax.bar(
-                    (positions + 0.5 * bar_width)[0]
-                    if stage == "train"
-                    else (positions + 1.5 * bar_width)[0],
+                    (
+                        (positions + 0.5 * bar_width)[0]
+                        if stage == "train"
+                        else (positions + 1.5 * bar_width)[0]
+                    ),
                     allocations_after_agg[0],
                     bar_width,
                     color=color,

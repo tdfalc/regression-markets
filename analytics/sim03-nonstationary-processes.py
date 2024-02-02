@@ -34,15 +34,15 @@ def plot_coefficients(
     forgetting_factors: Sequence,
     agent: int,
     savedir: Path,
-    burn_in: int = 50,
+    burn_in: int = 10,
 ):
-    fig, axs = plt.subplots(1, len(experiments), sharey=False, figsize=(6, 2.3))
+    fig, axs = plt.subplots(len(experiments), 1, sharey=False, figsize=(6.2, 2.3))
     colors = cycle(get_julia_colors()[5:8])
 
     colors = cycle(["#E91E63", "#4DD0E1", "#673AB7"])
 
     for i, ((experiment_title, experiment_config), ax) in enumerate(
-        zip(experiments.items(), axs.flatten())
+        zip(experiments.items(), axs.flatten() if len(experiments) > 1 else [axs])
     ):
         estimated_coefficients = results[experiment_title]
         coefficients = experiment_config["coefficients"]
@@ -69,12 +69,14 @@ def plot_coefficients(
             ax.legend(framealpha=0)
 
         ax.set_ylabel("$w_2$")
-        ax.set_xticks(np.linspace(0, len(coefficients), 5))
-        ax.ticklabel_format(
-            axis="x", style="scientific", scilimits=(0, 0), useMathText=True
-        )
+        ax.set_xticks(np.linspace(0, len(coefficients), 6))
+        # ax.ticklabel_format(
+        #     axis="x", style="scientific", scilimits=(0, 0), useMathText=True
+        # )
         ax.set_xlabel("Time Step")
         ax.set_ylim([0.0, 0.67])
+
+        ax.set_xlim((-48.900000000000006, 1048.9))
 
     save_figure(fig, savedir, f"estimated_coefficients")
 
@@ -92,17 +94,17 @@ def main():
     regularization = 1e-5
     forgetting_factors = [0.94, 0.995, 0.99999]
     experiments = {
-        "smooth_nonstationarity": {
-            "coefficients": np.hstack(
-                [
-                    np.linspace(0, 0, sample_size).reshape(-1, 1),
-                    np.linspace(-0.2, -0.2, sample_size).reshape(-1, 1),
-                    np.linspace(0.1**0.5, 0.6**0.5, sample_size).reshape(-1, 1)
-                    ** 2,
-                    np.linspace(0.3, 0.3, sample_size).reshape(-1, 1),
-                ]
-            ),
-        },
+        # "smooth_nonstationarity": {
+        #     "coefficients": np.hstack(
+        #         [
+        #             np.linspace(0, 0, sample_size).reshape(-1, 1),
+        #             np.linspace(-0.2, -0.2, sample_size).reshape(-1, 1),
+        #             np.linspace(0.1**0.5, 0.6**0.5, sample_size).reshape(-1, 1)
+        #             ** 2,
+        #             np.linspace(0.3, 0.3, sample_size).reshape(-1, 1),
+        #         ]
+        #     ),
+        # },
         "step_nonstationarity": {
             "coefficients": np.concatenate(
                 (
@@ -178,7 +180,7 @@ def main():
     plt.rc("axes", labelsize=12)  # fontsize of the x and y labels
     plt.rc("xtick", labelsize=12)  # fontsize of the tick labels
     plt.rc("ytick", labelsize=12)  # fontsize of the tick labels
-    plt.rc("legend", fontsize=10)  # legend fontsize
+    plt.rc("legend", fontsize=12)  # legend fontsize
 
     plot_coefficients(
         experiments,

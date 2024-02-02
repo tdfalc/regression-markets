@@ -112,27 +112,20 @@ def plot_results(
         [pyplot_colors[3], pyplot_colors[2], pyplot_colors[1], pyplot_colors[0]]
     )
 
-    markers = cycle(["o", "d", ">", "s"])
+    fig, axs = plt.subplots(4, 1, figsize=(6.2, 7), sharey=True, sharex=True)
 
-    fig, axs = plt.subplots(1, 2, figsize=(6.5, 2.4), sharex=True, sharey=True)
-    for ax, stage in zip(axs.flatten(), ("train", "test")):
-        if stage == "train":
-            axins_false = ax.inset_axes(axins_loc)
-            axins = ax.inset_axes(axins_loc)
-            axins_xmin, axins_xmax = np.inf, -np.inf
-            axins_ymin, axins_ymax = np.inf, -np.inf
-        ax.set_ylabel("Expected Value (EUR)")
-        ax.set_xlabel("Expected Shortfall (EUR)")
-        ax.set_xscale("symlog", linthresh=1e-2)
-        ax.set_yscale("symlog", linthresh=1e-1)
-        ax.axvline(x=0, color="gray", lw=1)
-        ax.axhline(y=0, color="gray", lw=1)
+    # figs = {
+    #     market_design: plt.subplots(figsize=(6.2, 2.5))
+    #     for market_design in market_designs.keys()
+    # }
 
-        for j, experiment_title in enumerate(experiments.keys()):
-            marker = next(markers)
-
+    for marker, stage in zip(["o", "s"], ("train", "test")):
+        for experiment_title in experiments.keys():
             custom_lines = []
-            for market_design in market_designs.keys():
+            for ax, market_design in zip(axs.flatten(), market_designs.keys()):
+
+                # fig, ax = figs[market_design]
+
                 color = next(colors)
                 experiment_results = results[experiment_title]
                 samples = experiment_results[market_design][stage][metric]
@@ -176,46 +169,38 @@ def plot_results(
                         cap.set_markeredgewidth(1)
 
                 custom_lines.append(Line2D([0], [0], color=color, lw=1))
-
-                if stage == "train":
-                    if "kld" in market_design.name or j in (0,):
-                        if (xmin := x - x_interval[0][0]) < axins_xmin:
-                            axins_xmin = xmin
-                        if (xmax := x + x_interval[1][0]) > axins_xmax:
-                            axins_xmax = xmax
-                        if (ymin := y - y_interval[0][0]) < axins_ymin:
-                            axins_ymin = ymin
-                        if (ymax := y + y_interval[1][0]) > axins_ymax:
-                            axins_ymax = ymax
-
-                        make_errorbar(axins)
-
                 make_errorbar(ax)
 
-    axins.set_xlim(axins_xmin - 0.0001, axins_xmax + 0.0001)
-    axins.set_ylim(axins_ymin - 0.03, axins_ymax + 0.7)
-    axins.set_xscale("symlog", linthresh=1e-2)
-    axins.set_yscale("symlog", linthresh=1e-1)
-    axins_false.set_xlim(axins_xmin - 0.001, axins_xmax + 0.001)
-    axins_false.set_ylim(axins_ymin - 0.015, axins_ymax + 0.05)
-    axins_false.set_xticklabels([])
-    axins_false.set_yticklabels([])
-    axins.set_xticklabels([])
-    axins.set_yticklabels([])
-    axins.axvline(x=0, color="gray", lw=1)
-    axs[0].indicate_inset_zoom(axins_false, edgecolor="black", alpha=0.3)
+    # filename_map = {
+    #     MarketDesigns.mle_nll: "mle",
+    #     MarketDesigns.blr_nll: "blr",
+    #     MarketDesigns.blr_kld_m: "kld_m",
+    #     MarketDesigns.blr_kld_c: "kld_c",
+    # }
 
-    axs[1].legend(
-        custom_lines,
-        [market_design.value for market_design in market_designs.keys()],
-        framealpha=0,
-        # fontsize=9,
-        loc="lower left",
-        bbox_to_anchor=(0, -0.04),
-        ncol=1,
-    )
-    axs[1].yaxis.set_tick_params(labelbottom=True)
-    fig.tight_layout()
+    for j, ax in enumerate(axs.flatten()):
+        if j == 0:
+            ax.legend(
+                custom_lines,
+                [market_design.value for market_design in market_designs.keys()],
+                framealpha=0,
+                # fontsize=9,
+                # loc="lower left",
+                # bbox_to_anchor=(0, -0.04),
+                ncol=2,
+            )
+        ax.axvline(x=0, color="lightgray")
+        ax.axhline(y=0, color="lightgray")
+
+        ax.set_ylabel("Exp. Value (EUR)")
+        if j == 3:
+            ax.set_xlabel("Exp. Shortfall (EUR)")
+        ax.set_xscale("symlog", linthresh=1e-2)
+        ax.set_yscale("symlog", linthresh=1e-1)
+        ax.set_xlim([-0.005, 80])
+        ax.set_ylim([-5, 3])
+
+        ax.yaxis.set_tick_params(labelbottom=True)
 
     save_figure(fig, savedir, f"revenue")
 
@@ -361,7 +346,7 @@ def main():
     plt.rc("axes", labelsize=12)  # fontsize of the x and y labels
     plt.rc("xtick", labelsize=12)  # fontsize of the tick labels
     plt.rc("ytick", labelsize=12)  # fontsize of the tick labels
-    plt.rc("legend", fontsize=9)  # legend fontsize
+    plt.rc("legend", fontsize=12)  # legend fontsize
 
     plot_results(
         results=all_results,
@@ -371,7 +356,7 @@ def main():
         num_bootstraps=1000,
         lower_quantile=0.05,
         upper_quantile=0.95,
-        axins_loc=[0.3, 0.05, 0.6, 0.4],
+        axins_loc=[0.03, 0.05, 0.5, 0.35],
         savedir=savedir,
     )
 

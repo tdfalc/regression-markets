@@ -24,7 +24,7 @@ from market.task import (
 )
 from market.data import MarketData, BatchData
 from market.mechanism import OnlineMarket
-from analytics.helpers import save_figure, get_pyplot_colors
+from analytics.helpers import save_figure, get_discrete_colors
 from market.policy import NllShapleyPolicy
 
 
@@ -156,7 +156,7 @@ def plot_results(
                         sigma=1000,
                     ),
                     color=color_map[color_idx],
-                    lw=1
+                    lw=1,
                     # label=target_codes[color_idx],
                 )
 
@@ -202,7 +202,8 @@ def main():
 
     url = "https://data.dtu.dk/ndownloader/files/35039785"
 
-    start = dt(2018, 1, 1, 0, 0, tzinfo=pytz.utc)
+    # start = dt(2018, 1, 1, 0, 0, tzinfo=pytz.utc)
+    start = dt(2019, 6, 1, 0, 0, tzinfo=pytz.utc)
     end = dt(2019, 12, 31, 23, 30, tzinfo=pytz.utc)
     target_codes = ["UK", "BE", "AT", "GR", "CY", "TR"]
     max_central_agent_lags = 1
@@ -213,7 +214,7 @@ def main():
     forgetting = 0.998
     results = defaultdict(dict)
 
-    colors = get_pyplot_colors()
+    colors = get_discrete_colors("viridis", 6)
     color_map = {i: colors[i] for i in range(6)}
 
     target_signals = []

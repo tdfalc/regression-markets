@@ -4,6 +4,8 @@ from enum import Enum
 from typing import Callable, Any
 
 import numpy as np
+from matplotlib.colors import to_hex
+from matplotlib.cm import get_cmap
 
 from market.data import BatchData
 
@@ -28,6 +30,17 @@ def add_dummy(X: np.ndarray):
 
 def get_classic_colors():
     return ["k", "r", "g", "b", "c", "m", "y"]
+
+
+def get_discrete_colors(cmap_name, num_colors):
+
+    cmap = get_cmap(cmap_name)
+    discrete_colors = [to_hex(cmap(i)) for i in range(0, cmap.N, cmap.N // num_colors)]
+    return discrete_colors
+
+
+def get_viridis_colors():
+    pass
 
 
 def get_pyplot_colors():

@@ -123,13 +123,13 @@ def plot_coefficients(coefficients: np.ndarray, savedir):
 
 
 def plot_metric_boostrap(results, savedir, idx):
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(6, 2.3), sharey=True)
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 4), sharey=True, sharex=True)
 
     pyplot_colors = get_pyplot_colors()
     colors = cycle([pyplot_colors[1], pyplot_colors[2], pyplot_colors[0]])
 
     metric = "payments"
-    for ax, stage in zip((ax1, ax2), ("train", "test")):
+    for i, (ax, stage) in enumerate(zip((ax1, ax2), ("train", "test"))):
         # ax.ticklabel_format(
         #     axis="both", style="scientific", scilimits=(1, 0), useMathText=True
         # )
@@ -160,10 +160,12 @@ def plot_metric_boostrap(results, savedir, idx):
                     label=market_design.value if seller == 0 else None,
                     zorder=1,
                 )
-                ax.axhline(y=0, c="gray", zorder=0)
+                ax.axhline(y=0, c="lightgray", zorder=0)
+
                 ax.yaxis.set_tick_params(labelbottom=True)
                 ax.set_ylabel("Revenue (EUR)")
-                ax.set_xlabel("Time Step")
+                if i == 1:
+                    ax.set_xlabel("Time Step")
 
     ax1.legend(framealpha=0, ncol=1)
 
@@ -183,10 +185,10 @@ def main():
     plt.rc("axes", labelsize=12)  # fontsize of the x and y labels
     plt.rc("xtick", labelsize=12)  # fontsize of the tick labels
     plt.rc("ytick", labelsize=12)  # fontsize of the tick labels
-    plt.rc("legend", fontsize=10)  # legend fontsize
+    plt.rc("legend", fontsize=12)  # legend fontsize
 
     config = {
-        "num_simulations": 1000,
+        "num_simulations": 50,  # 1000,
         "noise_variance": 1,
         "train_payment": 0.95,
         "test_payment": 0.95,
