@@ -104,8 +104,8 @@ def plot_shapley_convergence(
     savedir: Path,
 ):
     # fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 5), sharex=True, sharey=False)
-    fig1, ax1 = plt.subplots(1, figsize=(6, 3), sharex=True, sharey=False)
-    fig2, ax2 = plt.subplots(1, figsize=(6, 3), sharex=True, sharey=False)
+    fig1, ax1 = plt.subplots(1, figsize=(6.2, 2.6), sharex=True, sharey=False)
+    fig2, ax2 = plt.subplots(1, figsize=(6.2, 2.6), sharex=True, sharey=False)
 
     pyplot_colors = get_pyplot_colors()
     colors = cycle(
@@ -180,7 +180,22 @@ def plot_shapley_convergence(
                 custom_lines,
                 [market_design.value for market_design in market_designs],
                 framealpha=0,
-                ncol=1,
+                ncol=2,
+                loc="upper right",
+                bbox_to_anchor=(1, 0.92),
+            )
+            ax.set_ylim([0.35, 0.85])
+        else:
+            ax.set_ylim([0.965, 1.003])
+            ax.legend(
+                [custom_lines[2]],
+                [
+                    market_design.value
+                    for market_design in market_designs
+                    if market_design == MarketDesigns.blr_kld_m
+                ],
+                framealpha=0,
+                ncol=2,
                 loc="upper right",
                 bbox_to_anchor=(1, 0.92),
             )

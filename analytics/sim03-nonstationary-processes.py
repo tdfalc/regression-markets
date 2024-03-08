@@ -36,10 +36,12 @@ def plot_coefficients(
     savedir: Path,
     burn_in: int = 10,
 ):
-    fig, axs = plt.subplots(len(experiments), 1, sharey=False, figsize=(6.2, 2.3))
+    fig, axs = plt.subplots(len(experiments), 1, sharey=False, figsize=(6.2, 2.6))
     colors = cycle(get_julia_colors()[5:8])
 
-    colors = cycle(["#E91E63", "#4DD0E1", "#673AB7"])
+    colors = cycle(["#ffd700", "#ffff00", "#ffffe0"])
+    # colors = cycle(["C4", "C8", "C6"])
+    markers = cycle(["s", "o", "d"])
 
     for i, ((experiment_title, experiment_config), ax) in enumerate(
         zip(experiments.items(), axs.flatten() if len(experiments) > 1 else [axs])
@@ -52,14 +54,20 @@ def plot_coefficients(
             ax.plot(
                 data.mean(axis=0),
                 zorder=2,
-                color=next(colors),
+                color="k",
+                markeredgecolor="k",
+                markeredgewidth=0.8,
+                markerfacecolor="White",
+                markersize=4,
+                markevery=50,
+                marker=next(markers),
                 lw=1,
                 label="$\\tau = $" + f"{ff}",
             )
 
         ax.plot(
             coefficients[burn_in:, agent],
-            color="k",
+            color="red",
             lw=1,
             label="Truth",
             zorder=0,
@@ -74,7 +82,7 @@ def plot_coefficients(
         #     axis="x", style="scientific", scilimits=(0, 0), useMathText=True
         # )
         ax.set_xlabel("Time Step")
-        ax.set_ylim([0.0, 0.67])
+        ax.set_ylim([-0.05, 0.69])
 
         ax.set_xlim((-48.900000000000006, 1048.9))
 

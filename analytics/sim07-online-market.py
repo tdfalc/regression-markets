@@ -123,7 +123,7 @@ def plot_coefficients(coefficients: np.ndarray, savedir):
 
 
 def plot_metric_boostrap(results, savedir, idx):
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 4), sharey=True, sharex=True)
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 4.2), sharey=True, sharex=True)
 
     pyplot_colors = get_pyplot_colors()
     colors = cycle([pyplot_colors[1], pyplot_colors[2], pyplot_colors[0]])
@@ -160,7 +160,7 @@ def plot_metric_boostrap(results, savedir, idx):
                     label=market_design.value if seller == 0 else None,
                     zorder=1,
                 )
-                ax.axhline(y=0, c="lightgray", zorder=0)
+                ax.axhline(y=0, c="lightgray", zorder=0, lw=1)
 
                 ax.yaxis.set_tick_params(labelbottom=True)
                 ax.set_ylabel("Revenue (EUR)")

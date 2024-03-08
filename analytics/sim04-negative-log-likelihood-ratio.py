@@ -169,7 +169,8 @@ def main():
     plt.rc("ytick", labelsize=12)  # fontsize of the tick labels
     plt.rc("legend", fontsize=12)  # legend fontsize
 
-    fig, ax = plt.subplots(figsize=(6, 3.2))
+    # fig, ax = plt.subplots(figsize=(6, 3.2))
+    fig, ax = plt.subplots(figsize=(6.2, 2.6))
 
     cache_location = savedir / "cache"
     os.makedirs(cache_location, exist_ok=True)
@@ -201,6 +202,7 @@ def main():
     ax.set_ylabel(r"Improvement (\%)")
     ax.set_xlabel("Sample Size")
     ax.set_xscale("log")
+    ax.set_ylim([-5, 45])
 
     fig.subplots_adjust(wspace=10)
     save_figure(fig, savedir, "nll_ratio")

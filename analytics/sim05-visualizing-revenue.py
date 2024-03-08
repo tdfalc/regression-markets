@@ -119,9 +119,12 @@ def plot_results(
     #     for market_design in market_designs.keys()
     # }
 
-    for marker, stage in zip(["o", "s"], ("train", "test")):
+    markers = cycle(["o", "d", ">", "s"])
+
+    for ls, stage in zip(["-", "--"], ("train", "test")):
         for experiment_title in experiments.keys():
             custom_lines = []
+            marker = next(markers)
             for ax, market_design in zip(axs.flatten(), market_designs.keys()):
 
                 # fig, ax = figs[market_design]
@@ -150,7 +153,7 @@ def plot_results(
                 y, y_interval = get_statistics(expected_value)
 
                 def make_errorbar(ax):
-                    (_, caps, _) = ax.errorbar(
+                    (_, caps, line) = ax.errorbar(
                         x,
                         y,
                         marker=marker,
@@ -165,6 +168,7 @@ def plot_results(
                         markeredgewidth=0.8,
                         markeredgecolor="k",
                     )
+                    line[0].set_linestyle(ls)
                     for cap in caps:
                         cap.set_markeredgewidth(1)
 
