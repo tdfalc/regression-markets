@@ -88,7 +88,7 @@ class Market:
                     )
                     secondary_market_payments[method][i, :] = secondary_payments
                 ## The revenue should not be 0 in the case of mean imputation, any
-                # benefit of the mean imputatin should beallocated to the owner..
+                # benefit of the mean imputatin should beallocated to the owner.
                 if method.value != "no":
                     for j, is_missing in enumerate(missing_indicator[i]):
                         if is_missing:

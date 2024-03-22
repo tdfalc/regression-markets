@@ -26,11 +26,6 @@ class Task:
         """
         raise NotImplementedError
 
-    def calculate_loss(
-        self, X: np.ndarray, y: np.ndarray, indices: np.ndarray
-    ) -> float:
-        raise NotImplementedError
-
     def get_posterior_noise_variance(self, indices: Sequence):
         return self._noise_variances[tuple(indices)]
 
@@ -43,7 +38,10 @@ class Task:
         predictive_mean, predictive_sdev = self.predict(
             X=X, indices=indices, X_covariance=X_covariance
         )
-        return -stats.norm.logpdf(y, loc=predictive_mean, scale=predictive_sdev).mean()
+        l = -stats.norm.logpdf(y, loc=predictive_mean, scale=predictive_sdev).mean()
+        # if self.__class__.__name__ in ["GaussianProcessLinearRegression"]:
+        #     print(self.__class__.__name__, predictive_mean, predictive_sdev, y, l)
+        return l
 
 
 class WeightSpaceTask(Task):
@@ -142,7 +140,7 @@ class BayesianLinearRegression(WeightSpaceTask):
     def _flat_prior_coefficients(self, indices):
         num_indices = len(indices)
         return stats.multivariate_normal(
-            np.zeros(num_indices), np.eye(num_indices) / 1e-5  # Uninformative prior
+            np.zeros(num_indices), np.eye(num_indices) / 1e-32  # Uninformative prior
         )
 
     def _build_prior_coefficients(self, indices: Sequence):
@@ -247,6 +245,7 @@ class GaussianProcessLinearRegression(Task):
         sdev = np.diag(sdev)
         ## TODO: Break out this job from this function.
         X_covariance = X_covariance[:, indices][indices, :].copy()
+
         if X_covariance is None or np.count_nonzero(X_covariance) == 0:
             # If no covariance is provided, the noise-free posterior is returned
             # to avoid unecessary computations (i.e., we would get the same result

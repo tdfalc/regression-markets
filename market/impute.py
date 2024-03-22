@@ -16,6 +16,7 @@ class ImputationMethod(Enum):
     no = "no"
     mean = "mean"
     ols = "ols"
+    mle = "mle"
     blr = "blr"
     gpr = "gpr"
 
@@ -140,6 +141,12 @@ class OlsLinearRegressionImputer(RegressionImputer):
         self.deterministic = True
 
 
+class MaximumLikelihoodLinearRegressionImputer(RegressionImputer):
+    def __init__(self, market_data: BatchData):
+        self.regression_task = MaximumLikelihoodLinearRegression
+        super().__init__(market_data=market_data)
+
+
 class BayesianLinearRegressionImputer(RegressionImputer):
     def __init__(self, market_data: BatchData):
         self.regression_task = BayesianLinearRegression
@@ -168,5 +175,6 @@ def imputer_factory(market_data: BatchData, method: ImputationMethod) -> Imputer
         ImputationMethod.ols: OlsLinearRegressionImputer,
         ImputationMethod.blr: BayesianLinearRegressionImputer,
         ImputationMethod.gpr: GaussianProcessLinearRegressionImputer,
+        ImputationMethod.mle: MaximumLikelihoodLinearRegressionImputer,
     }
     return class_map[method](market_data=market_data)
