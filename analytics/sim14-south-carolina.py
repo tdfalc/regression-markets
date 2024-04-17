@@ -133,7 +133,7 @@ if __name__ == "__main__":
         ImputationMethod.mean,
         ImputationMethod.ols,
         # ImputationMethod.blr,
-        ImputationMethod.mle,
+        # ImputationMethod.mle,
         # ImputationMethod.gpr,
     ]
 
@@ -162,14 +162,15 @@ if __name__ == "__main__":
         # a = loss.flatten()
         x = np.sort(a)
         y = np.arange(len(x)) / float(len(x))
-        ax.plot(x, y, alpha=1)
+        ax.plot(x, y, alpha=1, label=label_map[method])
+        ax.legend()
 
         # ax.hist(loss.flatten(), alpha=0.5, density=True)
     # ax.plot(loss.mean(axis=0), label=label_map[method])
     # ax.plot(loss.squeeze(), label=label_map[method], color=f"C{i}")
 
-    ax.set_xlabel("Iteration")
-    ax.set_ylabel("E[Negative Log Likelihood]")
+    ax.set_xlabel("Empirical CDF")
+    ax.set_xlabel("E[Negative Log Likelihood]")
     # ax.legend()
     fig.tight_layout()
     fig.savefig(savedir / "losses", dpi=300)
