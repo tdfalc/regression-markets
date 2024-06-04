@@ -107,11 +107,10 @@ def plot_results(
     axins_loc: Sequence,
     savedir: Path,
 ):
-    pyplot_colors = get_pyplot_colors()
-    colors = cycle(
-        [pyplot_colors[3], pyplot_colors[2], pyplot_colors[1], pyplot_colors[0]]
-    )
+    from helpers import get_classic_colors
 
+    pyplot_colors = get_classic_colors()
+    colors = cycle(["magenta", "blue", "darkorange", "limegreen"])
     fig, axs = plt.subplots(4, 1, figsize=(6.2, 7), sharey=True, sharex=True)
 
     # figs = {
@@ -193,8 +192,8 @@ def plot_results(
                 # bbox_to_anchor=(0, -0.04),
                 ncol=2,
             )
-        ax.axvline(x=0, color="lightgray")
-        ax.axhline(y=0, color="lightgray")
+        ax.axvline(x=0, color="lightgray", lw=1)
+        ax.axhline(y=0, color="lightgray", lw=1)
 
         ax.set_ylabel("Exp. Value (EUR)")
         if j == 3:

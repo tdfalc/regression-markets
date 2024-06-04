@@ -36,12 +36,16 @@ def plot_coefficients(
     savedir: Path,
     burn_in: int = 10,
 ):
-    fig, axs = plt.subplots(len(experiments), 1, sharey=False, figsize=(6.2, 2.6))
+    fig, axs = plt.subplots(len(experiments), 1, sharey=False, figsize=(6, 2.6))
     colors = cycle(get_julia_colors()[5:8])
 
     colors = cycle(["#ffd700", "#ffff00", "#ffffe0"])
-    # colors = cycle(["C4", "C8", "C6"])
+    colors = cycle(["C4", "C8", "C6"])
+    colors = cycle(["lightseagreen", "coral", "mediumpurple"])
+    from helpers import get_ggplot_colors
+
     markers = cycle(["s", "o", "d"])
+    line_styles = cycle(["-.", "--", "-"])
 
     for i, ((experiment_title, experiment_config), ax) in enumerate(
         zip(experiments.items(), axs.flatten() if len(experiments) > 1 else [axs])
@@ -49,9 +53,44 @@ def plot_coefficients(
         estimated_coefficients = results[experiment_title]
         coefficients = experiment_config["coefficients"]
 
-        for ff in forgetting_factors:
+        for j, ff in enumerate(forgetting_factors):
             data = estimated_coefficients[ff][:, burn_in:, agent]
+            ls = next(line_styles)
+            marker = next(markers)
+            # ax.errorbar(
+            #     np.arange(burn_in, data.shape[1] + burn_in),
+            #     data.mean(axis=0),
+            #     yerr=2 * data.std(axis=0) / 10,
+            #     zorder=2,
+            #     color="k",
+            #     markeredgecolor="k",
+            #     markeredgewidth=0.8,
+            #     markerfacecolor="White",
+            #     markersize=4,
+            #     markevery=10,
+            #     marker=marker,
+            #     lw=1,
+            #     label="$\\tau = $" + f"{ff}",
+            #     elinewidth=0.5,
+            #     capsize=1,
+            #     # linestyle=ls,
+            #     # ecolor=next(colors),
+            # )
+
+            ax.fill_between(
+                np.arange(burn_in, data.shape[1] + burn_in),
+                data.mean(axis=0) + 2 * data.std(axis=0) / 10,
+                data.mean(axis=0) - 2 * data.std(axis=0) / 10,
+                color="k",
+                alpha=0.1,
+            )
+            if j == 2:
+                label = "$\\tau \\approx 1$"
+            else:
+                label = "$\\tau = $" + f" {ff}"
+
             ax.plot(
+                np.arange(burn_in, data.shape[1] + burn_in),
                 data.mean(axis=0),
                 zorder=2,
                 color="k",
@@ -59,22 +98,50 @@ def plot_coefficients(
                 markeredgewidth=0.8,
                 markerfacecolor="White",
                 markersize=4,
-                markevery=50,
+                markevery=10,
                 marker=next(markers),
                 lw=1,
-                label="$\\tau = $" + f"{ff}",
+                label=label,
             )
 
+        halfway = int((data.shape[1] + burn_in) / 2)
+        c = "red"
         ax.plot(
-            coefficients[burn_in:, agent],
-            color="red",
+            np.arange(burn_in, halfway),
+            coefficients[burn_in:halfway, agent],
+            color=c,
             lw=1,
-            label="Truth",
+            zorder=0,
+            label="Ground Truth",
+        )
+        ax.plot(
+            np.arange(halfway, data.shape[1] + burn_in),
+            coefficients[halfway:, agent],
+            color=c,
+            lw=1,
             zorder=0,
         )
 
+        ax.plot(
+            [halfway, halfway],
+            [coefficients[:, agent].min(), coefficients[:, agent].max()],
+            ls="dashed",
+            color=c,
+            lw=1,
+            zorder=0,
+        )
+
+        # ax.plot(
+        #     np.arange(burn_in, data.shape[1] + burn_in),
+        #     coefficients[burn_in:, agent],
+        #     color="k",
+        #     lw=1,
+        #     label="Ground Truth",
+        #     zorder=0,
+        # )
+
         if i == 0:
-            ax.legend(framealpha=0)
+            ax.legend(framealpha=0, loc="upper left")
 
         ax.set_ylabel("$w_2$")
         ax.set_xticks(np.linspace(0, len(coefficients), 6))
@@ -82,9 +149,18 @@ def plot_coefficients(
         #     axis="x", style="scientific", scilimits=(0, 0), useMathText=True
         # )
         ax.set_xlabel("Time Step")
-        ax.set_ylim([-0.05, 0.69])
+        ax.set_ylim([-0.05, 0.73])
 
-        ax.set_xlim((-48.900000000000006, 1048.9))
+        ax.fill_between(
+            np.arange(burn_in + 1),
+            1,
+            -1,
+            color="none",
+            hatch="///",
+            edgecolor="lavender",
+        )
+
+        ax.set_xlim((-4, 104))
 
     save_figure(fig, savedir, f"estimated_coefficients")
 
@@ -97,10 +173,11 @@ def main():
     os.makedirs(savedir, exist_ok=True)
 
     noise_variance = 1
-    sample_size = 1000
-    num_samples = 100
+    sample_size = 100
+    num_samples = 1000
     regularization = 1e-5
-    forgetting_factors = [0.94, 0.995, 0.99999]
+    # forgetting_factors = [0.94, 0.995, 0.99999]
+    forgetting_factors = [0.8, 0.95, 1 - 1e-9]
     experiments = {
         # "smooth_nonstationarity": {
         #     "coefficients": np.hstack(
@@ -193,12 +270,12 @@ def main():
     plot_coefficients(
         experiments,
         results,
-        [0.94, 0.995, 0.99999],
+        forgetting_factors,  # [0.94, 0.995, 0.99999],
         agent=2,
         savedir=savedir,
     )
 
 
 if __name__ == "__main__":
-    np.random.seed(123)
+    np.random.seed(42)
     main()

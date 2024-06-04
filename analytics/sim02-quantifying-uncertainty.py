@@ -28,11 +28,12 @@ def make_regression(coefficients: np.ndarray, noise_variance: float, sample_size
     y = X @ coefficients + np.random.normal(
         scale=np.sqrt(noise_variance), size=(sample_size, 1)
     )
+
     return X, y
 
 
 def plot_posterior(
-    ax: mpl.axes._subplots.SubplotBase,
+    ax: mpl.axes.SubplotBase,
     distribution: mvn_frozen,
     coefficients: np.ndarray,
 ):
@@ -55,7 +56,7 @@ def plot_posterior(
 
 
 def plot_predictive_uncertainty(
-    ax: mpl.axes._subplots.SubplotBase,
+    ax: mpl.axes.SubplotBase,
     y_test: np.ndarray,
     y_pred_mean: np.ndarray,
     y_pred_variance: np.ndarray,
@@ -67,21 +68,55 @@ def plot_predictive_uncertainty(
         loc=y_pred_mean,
         scale=y_pred_variance**0.5,
     )
+
+    import seaborn as sns
+
+    # sns.kdeplot(
+    #     nll.flatten(),
+    #     ax=ax,
+    #     color=color,
+    #     # bins=30,
+    # ).set(xlim=(0))
+    # ax.set_xlim([0, 5])
+
+    def bs(x, num_samples=1000):
+        n = len(x)
+
+        # Generate an array of shape (num_samples, n) with bootstrap samples
+        bootstrap_samples = np.random.choice(x, (num_samples, n), replace=True)
+
+        # Calculate the mean of each bootstrap sample along the axis 1
+        bootstrap_means = np.mean(bootstrap_samples, axis=1)
+
+        # Calculate the Monte Carlo mean (mean of the bootstrap means)
+
+        return bootstrap_means
+
+    bootstraps = bs(nll.flatten())
+
+    # sns.kdeplot(
+    #     nll.flatten(),
+    #     ax=ax,
+    #     color=color,
+    #     # bins=30,
+    # ).set(xlim=(0))
+    # ax.set_xlim([0, 5])
+
     ax.hist(
-        nll,
+        bootstraps,
         color=color,
         alpha=0.4,
         histtype="stepfilled",
         label=label,
-        # bins=30,
+        # bins=10,
     )
     ax.hist(
-        nll,
+        bootstraps,
         color=color,
         histtype="step",
         label=label,
         lw=1.5,
-        # bins=30,
+        # bins=10,
     )
 
     ax.set_xlabel("Negative Log Likelihood")
@@ -94,33 +129,43 @@ def plot_predictive_uncertainty(
 
 
 def plot_payments(
-    ax: mpl.axes._subplots.SubplotBase,
+    ax: mpl.axes.SubplotBase,
     market_output: Dict,
     sample_size: int,
     color: str,
 ):
-    payments = market_output["train"]["payments"] / sample_size
-    for i in range(1, sample_size + 1):
-        ax.scatter(
-            [1, 2],
-            i * payments,
-            color=color,
-            marker="_",
-            lw=0.6,
-            s=500,
-        )
-        ax.scatter(
-            [0],
-            i * -payments.sum(),
-            color=color,
-            marker="_",
-            lw=0.6,
-            s=500,
-        )
+    payments = market_output["train"]["payments"] / 1
+    # for i in range(1, sample_size + 1):
+    #     ax.scatter(
+    #         [1, 2],
+    #         i * payments,
+    #         color=color,
+    #         marker="_",
+    #         lw=0.6,
+    #         s=500,
+    #     )
+    #     ax.scatter(
+    #         [0],
+    #         i * -payments.sum(),
+    #         color=color,
+    #         marker="_",
+    #         lw=0.6,
+    #         s=500,
+    #     )
+    print(payments.shape)
+    ax.bar(
+        np.arange(3),
+        np.append(-payments.sum(), payments),
+        color=color,
+        alpha=0.5,
+        edgecolor="k",
+        width=0.4,
+    )
+
     ax.set_xticks([0, 1, 2])
     ax.set_xlim([-0.5, 2.5])
     ax.set_xticklabels(["Central\nAgent", "Owner\n$x_2$", "Owner\n$x_3$"])
-    ax.axhline(y=0, color="gray", zorder=0, alpha=0.6)
+    ax.axhline(y=0, color="gray", zorder=0, alpha=0.2)
     ax.set_ylabel("Revenue (EUR)")
 
 
@@ -131,8 +176,9 @@ def main():
     savedir = Path(__file__).parent / "docs/sim02-quantifying-uncertainty"
     os.makedirs(savedir, exist_ok=True)
 
-    coefficients = np.array([[-0], [0.31], [0.08], [0.65]])
-    noise_variance = 0.81
+    coefficients = np.array([[-0.11], [0.31], [0.08], [0.65]])
+    noise_variance = 1 / 1.24
+    noise_variance = 0.3
     regularization = 1e-6
     test_size = 100
 
@@ -140,9 +186,9 @@ def main():
     X_test, y_test = make_regression(coefficients, 0, sample_size=test_size)
 
     experiments = [
-        {"sample_size": 4},
+        {"sample_size": 5},
         {"sample_size": 10},
-        {"sample_size": 40},
+        {"sample_size": 50},
     ]
 
     fig = plt.figure(figsize=(8, 6.8))
@@ -156,15 +202,16 @@ def main():
     plt.rc("ytick", labelsize=12)  # fontsize of the tick labels
     plt.rc("legend", fontsize=12)  # legend fontsize
 
-    axs = np.empty((len(experiments), 3), dtype=mpl.axes._subplots.SubplotBase)
+    axs = np.empty((len(experiments), 3), dtype=mpl.axes.SubplotBase)
 
     for i, experiment in enumerate(experiments):
         sample_size = experiment["sample_size"]
 
         X_train, y_train = X[:sample_size], y[:sample_size]
+        X_test, y_test = X[:sample_size], y[:sample_size]
+
         task = BayesianLinearRegression(
-            noise_variance=noise_variance,
-            regularization=regularization,
+            noise_variance=noise_variance, regularization=regularization
         )
 
         indicies = np.arange(X_train.shape[1])
@@ -186,10 +233,16 @@ def main():
         )
         y_pred_buyer = task._predict(X_test[:, [0, 1]], posterior_buyer, noise_variance)
 
+        print("Buyer", y_pred_buyer[0][0], y_pred_buyer[1][0])
+        print("GC", y_pred_grand_coalition[0][0], y_pred_grand_coalition[1][0])
+
         axs[i, 1] = plt.subplot(len(experiments), 3, i * 3 + 2)
         if i > 0:
-            axs[i - 1, 1].get_shared_x_axes().join(axs[i, 1], axs[i - 1, 1])
-            axs[i - 1, 1].get_shared_y_axes().join(axs[i, 1], axs[i - 1, 1])
+            # axs[i - 1, 1].get_shared_x_axes().join(axs[i, 1], axs[i - 1, 1])
+            # axs[i - 1, 1].get_shared_y_axes().join(axs[i, 1], axs[i - 1, 1])
+
+            axs[i - 1, 1].sharex(axs[i, 1])
+            axs[i - 1, 1].sharey(axs[i, 1])
 
         element1 = plot_predictive_uncertainty(
             axs[i, 1],
@@ -216,12 +269,12 @@ def main():
 
         axs[i, 2] = plt.subplot(len(experiments), 3, i * 3 + 3)
         if i > 0:
-            axs[i - 1, 2].get_shared_y_axes().join(axs[i, 2], axs[i - 1, 2])
+            axs[i - 1, 2].sharey(axs[i, 2])
 
         market_data = BatchData(
             X_train[:, [0]], X_train[:, [1]], X_train[:, 2:], y_train
         )
-        market_output = BatchMarket(market_data, task, train_payment=0.01).run(
+        market_output = BatchMarket(market_data, task, train_payment=0.005).run(
             NllShapleyPolicy
         )
         plot_payments(axs[i, 2], market_output, len(X_train), color="k")

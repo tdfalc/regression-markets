@@ -39,8 +39,20 @@ def get_discrete_colors(cmap_name, num_colors):
     return discrete_colors
 
 
-def get_viridis_colors():
-    pass
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+
+
+def get_viridis_colors(N):
+    cmap = plt.get_cmap("Blues")
+
+    # Generate N colors from the colormap
+    colors = cmap(np.linspace(0, 1, N))
+
+    # Convert the colors to hex format
+    hex_colors = [mcolors.rgb2hex(color) for color in colors]
+    return hex_colors
 
 
 def get_pyplot_colors():

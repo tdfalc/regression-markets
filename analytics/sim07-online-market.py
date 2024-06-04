@@ -123,16 +123,17 @@ def plot_coefficients(coefficients: np.ndarray, savedir):
 
 
 def plot_metric_boostrap(results, savedir, idx):
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 4.2), sharey=True, sharex=True)
+    fig, ax1 = plt.subplots(1, 1, figsize=(6, 2.6), sharey=True, sharex=True)
 
     pyplot_colors = get_pyplot_colors()
-    colors = cycle([pyplot_colors[1], pyplot_colors[2], pyplot_colors[0]])
+    colors = cycle(["blue", "darkorange", "limegreen"])
 
     metric = "payments"
-    for i, (ax, stage) in enumerate(zip((ax1, ax2), ("train", "test"))):
+    for i, (ax, stage) in enumerate(zip((ax1,), ("test",))):
         # ax.ticklabel_format(
         #     axis="both", style="scientific", scilimits=(1, 0), useMathText=True
         # )
+
         for market_design, market_results in results.items():
             color = next(colors)
             metric_results = np.swapaxes(market_results[stage][metric], 0, -1)
@@ -160,12 +161,24 @@ def plot_metric_boostrap(results, savedir, idx):
                     label=market_design.value if seller == 0 else None,
                     zorder=1,
                 )
-                ax.axhline(y=0, c="lightgray", zorder=0, lw=1)
+                ax.axhline(y=0, c="lightgray", zorder=0, lw=0.8)
 
                 ax.yaxis.set_tick_params(labelbottom=True)
                 ax.set_ylabel("Revenue (EUR)")
-                if i == 1:
+                if i == 0:
                     ax.set_xlabel("Time Step")
+
+        ylim = ax.get_ylim()
+        ax.fill_between(
+            np.arange(11),
+            -20,
+            50,
+            color="none",
+            hatch="///",
+            edgecolor="lavender",
+        )
+        ax.set_xlim((-5, 105))
+        ax.set_ylim(ylim)
 
     ax1.legend(framealpha=0, ncol=1)
 
@@ -189,12 +202,12 @@ def main():
 
     config = {
         "num_simulations": 50,  # 1000,
-        "noise_variance": 1,
+        "noise_variance": 0.5,
         "train_payment": 0.95,
         "test_payment": 0.95,
         "regularization": 1e-5,
-        "sample_size": 1000,
-        "forgetting_factors": [0.94],
+        "sample_size": 100,
+        "forgetting_factors": [0.8],
         "burn_in": 10,
     }
 

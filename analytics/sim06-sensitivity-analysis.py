@@ -107,10 +107,16 @@ def plot_shapley_convergence(
     fig1, ax1 = plt.subplots(1, figsize=(6.2, 2.6), sharex=True, sharey=False)
     fig2, ax2 = plt.subplots(1, figsize=(6.2, 2.6), sharex=True, sharey=False)
 
-    pyplot_colors = get_pyplot_colors()
-    colors = cycle(
-        [pyplot_colors[3], pyplot_colors[2], pyplot_colors[1], pyplot_colors[0]]
+    from helpers import (
+        get_classic_colors,
+        get_julia_colors,
+        get_pyplot_colors,
+        get_viridis_colors,
     )
+
+    pyplot_colors = get_classic_colors()
+    colors = cycle([pyplot_colors[3], pyplot_colors[2], pyplot_colors[1], "orange"])
+    colors = cycle(["magenta", "blue", "darkorange", "limegreen"])
 
     line_styles = cycle(["-", "--"])
 
@@ -374,10 +380,10 @@ def main():
         "case0": {  # Shapley convergence
             "noise_variance": 0.5,
             "regularization": 1e-32,
-            "num_simulations": 10000,
+            "num_simulations": 1000,
             "test_payment": 0.01,
             "test_size": 1000,
-            "train_sizes": np.geomspace(10, 10000, 20),
+            "train_sizes": np.geomspace(10, 10000, 4),
             "agent_coefficients": np.array([0.7]),
             "coefficients_function": lambda c: np.atleast_2d([-0.1, 0.8, c, -0.9]).T,
         },
