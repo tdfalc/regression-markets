@@ -124,7 +124,7 @@ if __name__ == "__main__":
         ImputationMethod.no: "No-missing",
         ImputationMethod.mean: "Mean imputation",
         ImputationMethod.ols: "Deterministic imputation",
-        ImputationMethod.blr: "Probabilistic imputation",
+        # ImputationMethod.blr: "Probabilistic imputation",
         ImputationMethod.mle: "MLE imputation",
     }
 
@@ -133,7 +133,7 @@ if __name__ == "__main__":
         ImputationMethod.mean,
         ImputationMethod.ols,
         # ImputationMethod.blr,
-        # ImputationMethod.mle,
+        ImputationMethod.mle,
         # ImputationMethod.gpr,
     ]
 
