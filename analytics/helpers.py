@@ -1,7 +1,7 @@
 from pathlib import Path
 from collections import defaultdict
 from enum import Enum
-from typing import Callable, Any
+from typing import Callable, Any, Sequence
 
 import numpy as np
 from matplotlib.colors import to_hex
@@ -28,83 +28,31 @@ class MarketDesigns(str, Enum):
     blr_kld_c = r"$\mathcal{M}^{\mathrm{BLR}}_{\mathrm{KL}-v}$"
 
 
-def save_figure(fig, savedir: Path, filename: str, dpi: int = 300, tight: bool = True):
+def save_figure(
+    fig, savedir: Path, filename: str, dpi: int = 300, tight: bool = True
+) -> None:
     if tight:
         fig.tight_layout()
     for extension in (".pdf", ".png"):
         fig.savefig(savedir / (filename + extension), dpi=dpi, transparent=True)
 
 
-def add_dummy(X: np.ndarray):
+def add_dummy(X: np.ndarray[float]) -> np.ndarray[float]:
     return np.concatenate([np.ones((X.shape[0], 1)), X], axis=1)
 
 
-# def get_classic_colors():
-#     return ["k", "r", "g", "b", "c", "m", "y"]
-
-
-def get_discrete_colors(cmap_name, num_colors):
-
+def get_discrete_colors(cmap_name: str, num_colors: int) -> Sequence:
     cmap = get_cmap(cmap_name)
-    discrete_colors = [to_hex(cmap(i)) for i in range(0, cmap.N, cmap.N // num_colors)]
-    return discrete_colors
+    return [to_hex(cmap(i)) for i in range(0, cmap.N, cmap.N // num_colors)]
 
 
-# import numpy as np
-# import matplotlib.pyplot as plt
-# import matplotlib.colors as mcolors
-
-
-# def get_viridis_colors(N):
-#     cmap = plt.get_cmap("Blues")
-
-#     # Generate N colors from the colormap
-#     colors = cmap(np.linspace(0, 1, N))
-
-#     # Convert the colors to hex format
-#     hex_colors = [mcolors.rgb2hex(color) for color in colors]
-#     return hex_colors
-
-
-# def get_pyplot_colors():
-#     return [f"C{i}" for i in range(20)]
-
-
-# def get_ggplot_colors():
-#     return [
-#         "#F8766D",
-#         "#9590FF",
-#         "#A3A500",
-#         "#D89000",
-#         "#39B600",
-#         "#00BF7D",
-#         "#00BFC4",
-#         "#00B0F6",
-#         "#E76BF3",
-#     ]
-
-
-# def get_julia_colors():
-#     return [
-#         "#009AFA",
-#         "#E36F47",
-#         "#3DA44E",
-#         "#C371D2",
-#         "#AC8E17",
-#         "#05AAAE",
-#         "#ED5E93",
-#         "#C68225",
-#         "#01A98D",
-#     ]
-
-
-def nested_defaultdict(levels: int, default_factory: Any):
+def nested_defaultdict(levels: int, default_factory: Any) -> defaultdict:
     if levels == 1:
         return defaultdict(default_factory)
     return defaultdict(lambda: nested_defaultdict(levels - 1, default_factory))
 
 
-def build_input(sample_size: int, num_features: int):
+def build_input(sample_size: int, num_features: int) -> np.ndarray[float]:
     mean, covariance = np.zeros(num_features), np.eye(num_features)
     X = np.random.multivariate_normal(mean, covariance, size=sample_size)
     return add_dummy(X)
@@ -117,7 +65,7 @@ def build_data(
     interpolant_function: Callable,
     additive_noise_function: Callable,
     heteroskedasticity_function: Callable,
-):
+) -> Callable:
     sample_size = train_size + test_size
     test_frac = test_size / sample_size
 
@@ -131,7 +79,7 @@ def build_data(
     return _build_data
 
 
-def conditional_value_at_risk(x: np.ndarray, alpha: float, axis: int = 0):
+def conditional_value_at_risk(x: np.ndarray, alpha: float, axis: int = 0) -> np.ndarray:
     return -np.mean(
         np.partition(x, int(x.shape[axis] * alpha), axis=axis)[
             : int(x.shape[axis] * alpha)
@@ -140,7 +88,9 @@ def conditional_value_at_risk(x: np.ndarray, alpha: float, axis: int = 0):
     )
 
 
-def bootstrap_resample(arr, num_bootstraps, sample_size=None):
+def bootstrap_resample(
+    arr: np.ndarray, num_bootstraps: int, sample_size: int = None
+) -> np.ndarray:
     if sample_size is None:
         sample_size = len(arr)
     idx = np.random.randint(sample_size, size=(num_bootstraps, sample_size)).T
