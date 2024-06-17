@@ -1,6 +1,6 @@
 from pathlib import Path
 import os
-from typing import Callable, Sequence
+from typing import Callable, Sequence, Dict
 from collections import defaultdict
 from itertools import cycle
 
@@ -22,7 +22,7 @@ from analytics.helpers import (
     bootstrap_resample,
     conditional_value_at_risk,
     MarketDesigns,
-    get_pyplot_colors,
+    set_style,
 )
 from market.policy import (
     NllShapleyPolicy,
@@ -37,7 +37,7 @@ def build_data(
     interpolant_function: Callable,
     additive_noise_function: Callable,
     heteroskedasticity_function: Callable,
-):
+) -> Callable:
     def _build_data():
         X = build_input(sample_size, num_features)
         noise = additive_noise_function(sample_size)
@@ -55,7 +55,7 @@ def simulate_online_market(
     burn_in: int,
     train_payment: float,
     test_payment: float,
-):
+) -> Dict:
     results = {}
     for market_design, config in market_designs.items():
         task = config["task"](**config["kwargs"])
@@ -82,7 +82,7 @@ def parse_results(
     stages: Sequence[str],
     metrics: Sequence[str],
     market_designs: Sequence[str],
-):
+) -> Dict:
     empty_array = lambda: np.zeros(
         (num_forgetting_factors, num_sellers, sample_size - 1)
     )
@@ -112,7 +112,7 @@ def parse_results(
     return stacked_results
 
 
-def plot_coefficients(coefficients: np.ndarray, savedir):
+def plot_coefficients(coefficients: np.ndarray, savedir: Path) -> None:
     fig, ax = plt.subplots(figsize=(4, 2.5))
     for i, agent in enumerate(range(coefficients.shape[1])):
         ax.plot(coefficients[:, agent], label=f"w{i}")
@@ -122,17 +122,13 @@ def plot_coefficients(coefficients: np.ndarray, savedir):
     save_figure(fig, savedir, "coefficients")
 
 
-def plot_metric_boostrap(results, savedir, idx):
+def plot_metric_boostrap(results: Dict, savedir: Path, idx: int) -> None:
     fig, ax1 = plt.subplots(1, 1, figsize=(6, 2.6), sharey=True, sharex=True)
 
-    pyplot_colors = get_pyplot_colors()
     colors = cycle(["blue", "darkorange", "limegreen"])
 
     metric = "payments"
     for i, (ax, stage) in enumerate(zip((ax1,), ("test",))):
-        # ax.ticklabel_format(
-        #     axis="both", style="scientific", scilimits=(1, 0), useMathText=True
-        # )
 
         for market_design, market_results in results.items():
             color = next(colors)
@@ -145,16 +141,11 @@ def plot_metric_boostrap(results, savedir, idx):
 
             for seller in (0,):
 
-                def calculate_mean(metric):
-                    return metric.mean(axis=0)[seller, :, idx]
-
-                ev_mean = calculate_mean(expected_value)
-                es_mean = calculate_mean(expected_shortfall)
-
-                num_runs = np.arange(len(es_mean)) + 1
+                mean = expected_value.mean(axis=0)[seller, :, idx]
+                num_runs = np.arange(len(mean)) + 1
                 ax.plot(
                     num_runs,
-                    ev_mean.cumsum(),
+                    mean.cumsum(),
                     color=color,
                     ls="-",
                     lw=1,
@@ -185,23 +176,17 @@ def plot_metric_boostrap(results, savedir, idx):
     save_figure(fig, savedir, "contributions_risk")
 
 
-def main():
+def main() -> None:
     logger = create_logger(__name__)
     logger.info("Running online market analysis")
 
     savedir = Path(__file__).parent / "docs/sim07-online-market"
     os.makedirs(savedir, exist_ok=True)
 
-    plt.rc("text", usetex=True)
-    plt.rc("font", family="serif")
-    plt.rc("font", size=12)  # controls default text sizes
-    plt.rc("axes", labelsize=12)  # fontsize of the x and y labels
-    plt.rc("xtick", labelsize=12)  # fontsize of the tick labels
-    plt.rc("ytick", labelsize=12)  # fontsize of the tick labels
-    plt.rc("legend", fontsize=12)  # legend fontsize
+    set_style()
 
     config = {
-        "num_simulations": 50,  # 1000,
+        "num_simulations": 50,
         "noise_variance": 0.5,
         "train_payment": 0.95,
         "test_payment": 0.95,

@@ -6,8 +6,19 @@ from typing import Callable, Any
 import numpy as np
 from matplotlib.colors import to_hex
 from matplotlib.cm import get_cmap
+import matplotlib.pyplot as plt
 
 from market.data import BatchData
+
+
+def set_style() -> None:
+    plt.rc("text", usetex=True)
+    plt.rc("font", family="serif")
+    plt.rc("font", size=12)
+    plt.rc("axes", labelsize=12)
+    plt.rc("xtick", labelsize=12)
+    plt.rc("ytick", labelsize=12)
+    plt.rc("legend", fontsize=12)
 
 
 class MarketDesigns(str, Enum):
@@ -28,8 +39,8 @@ def add_dummy(X: np.ndarray):
     return np.concatenate([np.ones((X.shape[0], 1)), X], axis=1)
 
 
-def get_classic_colors():
-    return ["k", "r", "g", "b", "c", "m", "y"]
+# def get_classic_colors():
+#     return ["k", "r", "g", "b", "c", "m", "y"]
 
 
 def get_discrete_colors(cmap_name, num_colors):
@@ -39,52 +50,52 @@ def get_discrete_colors(cmap_name, num_colors):
     return discrete_colors
 
 
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
+# import numpy as np
+# import matplotlib.pyplot as plt
+# import matplotlib.colors as mcolors
 
 
-def get_viridis_colors(N):
-    cmap = plt.get_cmap("Blues")
+# def get_viridis_colors(N):
+#     cmap = plt.get_cmap("Blues")
 
-    # Generate N colors from the colormap
-    colors = cmap(np.linspace(0, 1, N))
+#     # Generate N colors from the colormap
+#     colors = cmap(np.linspace(0, 1, N))
 
-    # Convert the colors to hex format
-    hex_colors = [mcolors.rgb2hex(color) for color in colors]
-    return hex_colors
-
-
-def get_pyplot_colors():
-    return [f"C{i}" for i in range(20)]
+#     # Convert the colors to hex format
+#     hex_colors = [mcolors.rgb2hex(color) for color in colors]
+#     return hex_colors
 
 
-def get_ggplot_colors():
-    return [
-        "#F8766D",
-        "#9590FF",
-        "#A3A500",
-        "#D89000",
-        "#39B600",
-        "#00BF7D",
-        "#00BFC4",
-        "#00B0F6",
-        "#E76BF3",
-    ]
+# def get_pyplot_colors():
+#     return [f"C{i}" for i in range(20)]
 
 
-def get_julia_colors():
-    return [
-        "#009AFA",
-        "#E36F47",
-        "#3DA44E",
-        "#C371D2",
-        "#AC8E17",
-        "#05AAAE",
-        "#ED5E93",
-        "#C68225",
-        "#01A98D",
-    ]
+# def get_ggplot_colors():
+#     return [
+#         "#F8766D",
+#         "#9590FF",
+#         "#A3A500",
+#         "#D89000",
+#         "#39B600",
+#         "#00BF7D",
+#         "#00BFC4",
+#         "#00B0F6",
+#         "#E76BF3",
+#     ]
+
+
+# def get_julia_colors():
+#     return [
+#         "#009AFA",
+#         "#E36F47",
+#         "#3DA44E",
+#         "#C371D2",
+#         "#AC8E17",
+#         "#05AAAE",
+#         "#ED5E93",
+#         "#C68225",
+#         "#01A98D",
+#     ]
 
 
 def nested_defaultdict(levels: int, default_factory: Any):

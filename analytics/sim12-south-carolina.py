@@ -2,6 +2,7 @@ import os
 from typing import Sequence, Dict
 from collections import defaultdict
 from pathlib import Path
+import math
 
 import pandas as pd
 import json
@@ -65,8 +66,8 @@ class NllWeightedShapleyPolicy(NllShapleyPolicy):
             observational=observational,
         )
         self.median_coalition_size = 0.5 * (self.grand_coalition_size - 1)
-        self.floor = np.math.floor(self.median_coalition_size)
-        self.ceil = np.math.ceil(self.median_coalition_size)
+        self.floor = math.floor(self.median_coalition_size)
+        self.ceil = math.ceil(self.median_coalition_size)
 
     def _contribution_weight(self, coalition_size: int) -> float:
         if coalition_size >= self.floor:
@@ -75,8 +76,8 @@ class NllWeightedShapleyPolicy(NllShapleyPolicy):
             super()._contribution_weight(coalition_size)
             * self.ceil
             * self.floor
-            / np.math.factorial(coalition_size)
-            / np.math.factorial(self.grand_coalition_size - coalition_size - 1)
+            / math.factorial(coalition_size)
+            / math.factorial(self.grand_coalition_size - coalition_size - 1)
         )
 
 
@@ -113,7 +114,7 @@ class NllPenalizedShapleyPolicy(NllShapleyPolicy):
         return contributions * np.exp(-self.alpha * penalties)
 
 
-def noise_variance_mle(data: BatchData):
+def noise_variance_mle(data: BatchData) -> float:
     task = MaximumLikelihoodLinearRegression()
     indices = np.arange(data.X.shape[1])
     task.update_posterior(data.X, data.y, indices)
@@ -130,7 +131,7 @@ def parse_raw_data(fname: Path) -> pd.DataFrame:
 
 def build_market_data(
     df, test_frac, central_agent, num_replications, agents, num_samples=None
-):
+) -> BatchData:
     df = df.resample("1H").mean()
     df = df.loc[:, agents].copy()
 
@@ -176,7 +177,7 @@ def build_market_data(
     )
 
 
-def plot_raw_data(raw_data, savedir: Path):
+def plot_raw_data(raw_data: pd.DataFrame, savedir: Path) -> None:
     fig, ax = plt.subplots(dpi=300, figsize=(6, 4))
     for wf, data in raw_data.groupby(pd.Grouper(freq="SM")).mean().iteritems():
         ax.plot(data, label=wf)
@@ -192,7 +193,7 @@ def plot_map(
     raw_data: pd.DataFrame,
     locations: Dict,
     savedir: Path,
-):
+) -> None:
     gdf_shapefile = gpd.read_file(shapefile)
     geometry = [
         Point(lon, lat)
@@ -200,7 +201,18 @@ def plot_map(
     ]
     gdf_points = gpd.GeoDataFrame(locations, geometry=geometry, crs=gdf_shapefile.crs)
     gdf_points["correlation"] = raw_data.corr()["a1"].values
-    gdf_points["colors"] = get_julia_colors()[:9]
+    gdf_points["colors"] = [
+        "magenta",
+        "blue",
+        "darkorange",
+        "limegreen",
+        "magenta",
+        "blue",
+        "darkorange",
+        "limegreen",
+        "magenta",
+    ]
+
     gdf_points = gdf_points.sort_values(by="correlation")
 
     normalized_correlation = 0.1 + (
@@ -259,14 +271,14 @@ def plot_map(
     save_figure(fig, savedir, "map")
 
 
-def plot_acf(agents: Sequence, savedir):
+def plot_acf(agents: Sequence, savedir: Path) -> None:
     def acf(x, length=50):
         return np.array(
             [1] + [np.corrcoef(x[:-i], x[i:])[0, 1] for i in range(1, length)]
         )
 
     fig, ax = plt.subplots(dpi=600, figsize=(3.6, 3.2))
-    colors = get_discrete_colors("viridis", 8)
+    colors = get_discrete_colors("viridis", 9)
 
     for i, wf in enumerate(agents):
         ax.plot(acf(raw_data[wf], length=50), c=colors[i], label=wf)
@@ -278,7 +290,7 @@ def plot_acf(agents: Sequence, savedir):
     save_figure(fig, savedir, "acf")
 
 
-def _add_replicate_revenue(values: np.ndarray, max_replications: int):
+def _add_replicate_revenue(values: np.ndarray, max_replications: int) -> np.ndarray:
     values = values.copy()
     total = values[: max_replications + 1].sum()
     values = values[max_replications:]
@@ -286,16 +298,15 @@ def _add_replicate_revenue(values: np.ndarray, max_replications: int):
     return values
 
 
-def plot_results(results: Dict, max_replications: int, savedir: Path):
+def plot_results(results: Dict, max_replications: int, savedir: Path) -> None:
     bar_width = 0.2
     metric = "allocations"
-    hatches = ("//", "..")
-    colors = get_discrete_colors("viridis", 8)[:2]
+    colors = get_discrete_colors("viridis", 8)[-2:]
 
     for policy in ("Shapley-Obs", "Shapley-Int"):
         fig, ax = plt.subplots(figsize=(3.6, 3.2), dpi=300)
 
-        for stage, hatch, color in zip(("train", "test"), hatches, colors):
+        for stage, hatch, color in zip(("train", "test"), ("//", ".."), colors):
             allocations_before = results[policy][0][stage][metric].flatten() * 100
             allocations_after = (
                 results[policy][max_replications][stage][metric].flatten() * 100
@@ -401,7 +412,7 @@ def plot_results(results: Dict, max_replications: int, savedir: Path):
         ax.set_xticklabels(["$a_4$", "$a_5$", "$a_6$", "$a_7$", "$a_8$", "$a_9$"])
 
         fig.tight_layout()
-        save_figure(fig, savedir, f"allocations_{policy}")
+        save_figure(fig, savedir, f"allocations_{policy.lower()}")
 
 
 def plot_policy_comparison(
@@ -428,10 +439,6 @@ def plot_policy_comparison(
         ax.plot(policy_allications[policy], label=policy)
         ax.set_ylabel("Revenue Allocation (%)")
         ax.set_xlabel("# Replications")
-
-    pd.DataFrame(policy_allications).to_csv(
-        savedir / f"policy_comparison_data.txt", index=True, sep="\t"
-    )
 
     ax.legend()
     fig.tight_layout()
@@ -461,7 +468,7 @@ if __name__ == "__main__":
     num_samples = None
     central_agent = "a1"
     regularization = 1e-32
-    max_replications = 6
+    max_replications = 5  # 6
     agents = ["a1", "a4", "a5", "a6", "a7", "a8", "a9"]
     experiments = {
         "Shapley-Int": {
@@ -480,10 +487,10 @@ if __name__ == "__main__":
             "policy": NllPenalizedShapleyPolicy,
             "observational": True,
         },
-        "Shapley-Obs-Weighted": {
-            "policy": NllWeightedShapleyPolicy,
-            "observational": True,
-        },
+        # "Shapley-Obs-Weighted": {
+        #     "policy": NllWeightedShapleyPolicy,
+        #     "observational": True,
+        # },
     }
 
     cache_location = savedir / "cache"
@@ -532,10 +539,9 @@ if __name__ == "__main__":
     results = _run_experiments()
 
     plot_results(results, max_replications=4, savedir=savedir)
-
     plot_policy_comparison(
         results,
-        ["Shapley-Int", "Shapley-Obs", "Banzhaf-Obs", "Shapley-Obs-Penalized"],
+        experiments.keys(),
         max_replications,
         savedir,
     )

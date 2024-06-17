@@ -12,10 +12,10 @@ from tqdm import tqdm
 from market.task import OnlineBayesianLinearRegression
 from common.log import create_logger
 from common.utils import cache, tqdm_joblib
-from analytics.helpers import save_figure, get_julia_colors
+from analytics.helpers import save_figure, set_style
 
 
-def sample_input(num_features: int) -> np.ndarray:
+def sample_input(num_features: int) -> np.ndarray[float]:
     mean, covariance = np.zeros(num_features), np.eye(num_features)
     x = np.random.multivariate_normal(mean, covariance)
     return np.append(np.ones(1), x)
@@ -35,17 +35,10 @@ def plot_coefficients(
     agent: int,
     savedir: Path,
     burn_in: int = 10,
-):
+) -> None:
     fig, axs = plt.subplots(len(experiments), 1, sharey=False, figsize=(6, 2.6))
-    colors = cycle(get_julia_colors()[5:8])
-
-    colors = cycle(["#ffd700", "#ffff00", "#ffffe0"])
-    colors = cycle(["C4", "C8", "C6"])
-    colors = cycle(["lightseagreen", "coral", "mediumpurple"])
-    from helpers import get_ggplot_colors
 
     markers = cycle(["s", "o", "d"])
-    line_styles = cycle(["-.", "--", "-"])
 
     for i, ((experiment_title, experiment_config), ax) in enumerate(
         zip(experiments.items(), axs.flatten() if len(experiments) > 1 else [axs])
@@ -55,27 +48,6 @@ def plot_coefficients(
 
         for j, ff in enumerate(forgetting_factors):
             data = estimated_coefficients[ff][:, burn_in:, agent]
-            ls = next(line_styles)
-            marker = next(markers)
-            # ax.errorbar(
-            #     np.arange(burn_in, data.shape[1] + burn_in),
-            #     data.mean(axis=0),
-            #     yerr=2 * data.std(axis=0) / 10,
-            #     zorder=2,
-            #     color="k",
-            #     markeredgecolor="k",
-            #     markeredgewidth=0.8,
-            #     markerfacecolor="White",
-            #     markersize=4,
-            #     markevery=10,
-            #     marker=marker,
-            #     lw=1,
-            #     label="$\\tau = $" + f"{ff}",
-            #     elinewidth=0.5,
-            #     capsize=1,
-            #     # linestyle=ls,
-            #     # ecolor=next(colors),
-            # )
 
             ax.fill_between(
                 np.arange(burn_in, data.shape[1] + burn_in),
@@ -105,11 +77,10 @@ def plot_coefficients(
             )
 
         halfway = int((data.shape[1] + burn_in) / 2)
-        c = "red"
         ax.plot(
             np.arange(burn_in, halfway),
             coefficients[burn_in:halfway, agent],
-            color=c,
+            color="red",
             lw=1,
             zorder=0,
             label="Ground Truth",
@@ -117,37 +88,24 @@ def plot_coefficients(
         ax.plot(
             np.arange(halfway, data.shape[1] + burn_in),
             coefficients[halfway:, agent],
-            color=c,
+            color="red",
             lw=1,
             zorder=0,
         )
-
         ax.plot(
             [halfway, halfway],
             [coefficients[:, agent].min(), coefficients[:, agent].max()],
             ls="dashed",
-            color=c,
+            color="red",
             lw=1,
             zorder=0,
         )
-
-        # ax.plot(
-        #     np.arange(burn_in, data.shape[1] + burn_in),
-        #     coefficients[burn_in:, agent],
-        #     color="k",
-        #     lw=1,
-        #     label="Ground Truth",
-        #     zorder=0,
-        # )
 
         if i == 0:
             ax.legend(framealpha=0, loc="upper left")
 
         ax.set_ylabel("$w_2$")
         ax.set_xticks(np.linspace(0, len(coefficients), 6))
-        # ax.ticklabel_format(
-        #     axis="x", style="scientific", scilimits=(0, 0), useMathText=True
-        # )
         ax.set_xlabel("Time Step")
         ax.set_ylim([-0.05, 0.73])
 
@@ -165,18 +123,19 @@ def plot_coefficients(
     save_figure(fig, savedir, f"estimated_coefficients")
 
 
-def main():
+def main() -> None:
     logger = create_logger(__name__)
     logger.info("Running nonstationary processes analysis")
 
     savedir = Path(__file__).parent / "docs/sim03-nonstationary-processes"
     os.makedirs(savedir, exist_ok=True)
 
+    set_style()
+
     noise_variance = 1
     sample_size = 100
     num_samples = 1000
     regularization = 1e-5
-    # forgetting_factors = [0.94, 0.995, 0.99999]
     forgetting_factors = [0.8, 0.95, 1 - 1e-9]
     experiments = {
         # "smooth_nonstationarity": {
@@ -249,7 +208,7 @@ def main():
 
             with tqdm_joblib(tqdm(desc="Simulation progress", total=num_samples)) as _:
                 estimated_coefficients = Parallel(n_jobs=-1)(
-                    delayed(_simulate)() for run in range(num_samples)
+                    delayed(_simulate)() for _ in range(num_samples)
                 )
 
             return {
@@ -259,18 +218,10 @@ def main():
 
         results[experiment_title] = _run_experiment()
 
-    plt.rc("text", usetex=True)
-    plt.rc("font", family="serif")
-    plt.rc("font", size=12)  # controls default text sizes
-    plt.rc("axes", labelsize=12)  # fontsize of the x and y labels
-    plt.rc("xtick", labelsize=12)  # fontsize of the tick labels
-    plt.rc("ytick", labelsize=12)  # fontsize of the tick labels
-    plt.rc("legend", fontsize=12)  # legend fontsize
-
     plot_coefficients(
         experiments,
         results,
-        forgetting_factors,  # [0.94, 0.995, 0.99999],
+        forgetting_factors,
         agent=2,
         savedir=savedir,
     )

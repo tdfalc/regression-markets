@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from itertools import cycle
+from typing import Tuple
 
 import numpy as np
 from scipy import stats
@@ -13,7 +14,7 @@ from market.task import BayesianLinearRegression
 from market.mechanism import BatchMarket
 from market.policy import NllShapleyPolicy
 from common.log import create_logger
-from analytics.helpers import save_figure, get_pyplot_colors
+from analytics.helpers import save_figure
 
 
 def build_market_data(
@@ -22,7 +23,7 @@ def build_market_data(
     error_covariance: np.ndarray,
     sample_size: int,
     test_frac: float = 0.5,
-):
+) -> BatchData:
     def build_var_process(coefficients: np.ndarray, autocorrelations: np.ndarray):
         var = np.eye(len(coefficients) + 1)
         np.fill_diagonal(var, autocorrelations)
@@ -73,7 +74,7 @@ def run_experiment(
     noise_variance: float,
     regularization: float = 1e-32,
     test_frac: float = 0.5,
-):
+) -> Tuple[np.ndarray[float], np.ndarray[float], np.ndarray[float]]:
     def _one_sample():
         market_data = build_market_data(
             coefficients,
@@ -135,7 +136,7 @@ def plot_results(
     allocations_obs: np.ndarray,
     allocations_int: np.ndarray,
     loss_diff: np.ndarray,
-):
+) -> None:
     means = pd.DataFrame(
         {
             "Objective Increase": loss_diff.mean(axis=0),
@@ -145,13 +146,6 @@ def plot_results(
     )
 
     fig, ax = plt.subplots(dpi=600, figsize=(3.6, 3.2))
-
-    colors = cycle([get_pyplot_colors()[7]] + get_pyplot_colors()[5:])
-
-    print(means)
-
-    means.to_csv(savedir / f"means.txt", index=True, sep="\t")
-
     for i, col in enumerate(means.columns):
         ax.bar(
             np.arange(2) + i * 0.2,
@@ -160,7 +154,6 @@ def plot_results(
             capsize=5,
             width=0.2,
             edgecolor="k",
-            color=next(colors),
         )
 
     ax.set_xticks([0.25, 1.25])

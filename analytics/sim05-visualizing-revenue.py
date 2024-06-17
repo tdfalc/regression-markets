@@ -1,4 +1,4 @@
-from typing import Sequence
+from typing import Dict
 from pathlib import Path
 import os
 from collections import defaultdict
@@ -23,7 +23,7 @@ from analytics.helpers import (
     conditional_value_at_risk,
     bootstrap_resample,
     MarketDesigns,
-    get_pyplot_colors,
+    set_style,
 )
 from market.data import BatchData
 from market.policy import (
@@ -39,7 +39,7 @@ def simulate_batch(
     market_designs: dict,
     train_payment: float,
     test_payment: float,
-):
+) -> Dict:
     def calculate_losses(task):
         X_train, X_test = market_data.X_train, market_data.X_test
         y_train, y_test = market_data.y_train, market_data.y_test
@@ -73,7 +73,7 @@ def simulate_batch(
     return results
 
 
-def parse_result(results):
+def parse_result(results: Dict) -> Dict:
     parsed_results = partial(
         defaultdict, partial(defaultdict, partial(defaultdict, list))
     )()
@@ -104,19 +104,11 @@ def plot_results(
     num_bootstraps: int,
     lower_quantile: float,
     upper_quantile: float,
-    axins_loc: Sequence,
     savedir: Path,
-):
-    from helpers import get_classic_colors
+) -> None:
 
-    pyplot_colors = get_classic_colors()
     colors = cycle(["magenta", "blue", "darkorange", "limegreen"])
     fig, axs = plt.subplots(4, 1, figsize=(6.2, 7), sharey=True, sharex=True)
-
-    # figs = {
-    #     market_design: plt.subplots(figsize=(6.2, 2.5))
-    #     for market_design in market_designs.keys()
-    # }
 
     markers = cycle(["o", "d", ">", "s"])
 
@@ -125,8 +117,6 @@ def plot_results(
             custom_lines = []
             marker = next(markers)
             for ax, market_design in zip(axs.flatten(), market_designs.keys()):
-
-                # fig, ax = figs[market_design]
 
                 color = next(colors)
                 experiment_results = results[experiment_title]
@@ -174,22 +164,12 @@ def plot_results(
                 custom_lines.append(Line2D([0], [0], color=color, lw=1))
                 make_errorbar(ax)
 
-    # filename_map = {
-    #     MarketDesigns.mle_nll: "mle",
-    #     MarketDesigns.blr_nll: "blr",
-    #     MarketDesigns.blr_kld_m: "kld_m",
-    #     MarketDesigns.blr_kld_c: "kld_c",
-    # }
-
     for j, ax in enumerate(axs.flatten()):
         if j == 0:
             ax.legend(
                 custom_lines,
                 [market_design.value for market_design in market_designs.keys()],
                 framealpha=0,
-                # fontsize=9,
-                # loc="lower left",
-                # bbox_to_anchor=(0, -0.04),
                 ncol=2,
             )
         ax.axvline(x=0, color="lightgray", lw=1)
@@ -208,12 +188,14 @@ def plot_results(
     save_figure(fig, savedir, f"revenue")
 
 
-def main():
+def main() -> None:
     logger = create_logger(__name__)
     logger.info("Running visualizing revenue analysis")
 
     savedir = Path(__file__).parent / "docs/sim05-visualizing-revenue"
     os.makedirs(savedir, exist_ok=True)
+
+    set_style()
 
     train_size = 10
     test_size = 10
@@ -343,14 +325,6 @@ def main():
 
         all_results[experiment_title] = parse_result(experiment_results)
 
-    plt.rc("text", usetex=True)
-    plt.rc("font", family="serif")
-    plt.rc("font", size=12)  # controls default text sizes
-    plt.rc("axes", labelsize=12)  # fontsize of the x and y labels
-    plt.rc("xtick", labelsize=12)  # fontsize of the tick labels
-    plt.rc("ytick", labelsize=12)  # fontsize of the tick labels
-    plt.rc("legend", fontsize=12)  # legend fontsize
-
     plot_results(
         results=all_results,
         experiments=experiments,
@@ -359,7 +333,6 @@ def main():
         num_bootstraps=1000,
         lower_quantile=0.05,
         upper_quantile=0.95,
-        axins_loc=[0.03, 0.05, 0.5, 0.35],
         savedir=savedir,
     )
 

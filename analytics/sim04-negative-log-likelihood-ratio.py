@@ -1,4 +1,4 @@
-from typing import Sequence, Callable
+from typing import Sequence, Callable, Dict
 from pathlib import Path
 import os
 from collections import defaultdict
@@ -14,7 +14,7 @@ from market.task import (
     MaximumLikelihoodLinearRegression,
     Task,
 )
-from analytics.helpers import save_figure, add_dummy
+from analytics.helpers import save_figure, add_dummy, set_style
 from common.log import create_logger
 from common.utils import tqdm_joblib, cache
 
@@ -24,7 +24,7 @@ def build_data(
     interpolant_function: Callable,
     additive_noise_function: Callable,
     heteroskedasticity_function: Callable,
-):
+) -> Callable:
     def _split_data(X, y):
         train_size = int(len(X) - test_size)
         X_train, X_test = X[:train_size], X[train_size:]
@@ -48,7 +48,7 @@ def calculate_loss(
     y_train: np.ndarray,
     y_test: np.ndarray,
     **kwargs
-):
+) -> float:
     task = task(**kwargs)
     indices = np.arange(X_train.shape[1])
     task.update_posterior(X_train, y_train, indices)
@@ -62,7 +62,7 @@ def run_experiment(
     regularization: float,
     noise_variance: float,
     experiments: Sequence[dict],
-):
+) -> Dict:
     results = defaultdict(list)
     for sample_size in sample_sizes:
         for title, config in experiments.items():
@@ -93,14 +93,14 @@ def run_experiment(
     return results
 
 
-def main():
+def main() -> None:
     logger = create_logger(__name__)
     logger.info("Running negative log likelihood ratio analysis")
 
     savedir = Path(__file__).parent / "docs/sim04-negative-log-likelihood-ratio"
     os.makedirs(savedir, exist_ok=True)
 
-    markers = cycle(["o", "d", ">", "s"])
+    set_style()
 
     coefficients = np.array([[-0.1], [0.3], [0.8], [-0.4]])
     noise_variance = 2
@@ -161,17 +161,8 @@ def main():
         },
     }
 
-    plt.rc("text", usetex=True)
-    plt.rc("font", family="serif")
-    plt.rc("font", size=12)  # controls default text sizes
-    plt.rc("axes", labelsize=12)  # fontsize of the x and y labels
-    plt.rc("xtick", labelsize=12)  # fontsize of the tick labels
-    plt.rc("ytick", labelsize=12)  # fontsize of the tick labels
-    plt.rc("legend", fontsize=12)  # legend fontsize
-
-    # fig, ax = plt.subplots(figsize=(6, 3.2))
     fig, ax = plt.subplots(figsize=(6.2, 2.6))
-
+    markers = cycle(["o", "d", ">", "s"])
     cache_location = savedir / "cache"
     os.makedirs(cache_location, exist_ok=True)
     with tqdm_joblib(tqdm(desc="Simulation progress", total=num_samples)) as _:

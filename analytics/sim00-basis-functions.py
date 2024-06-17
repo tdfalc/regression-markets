@@ -31,7 +31,7 @@ class BasisFunctions:
         return self.X**power
 
 
-def main():
+def main() -> None:
     logger = create_logger(__name__)
     logger.info("Running basis functions analysis")
 

@@ -1,4 +1,4 @@
-from typing import Sequence
+from typing import Sequence, Dict
 from joblib import delayed, Parallel
 from pathlib import Path
 import os
@@ -18,10 +18,8 @@ from analytics.helpers import (
     save_figure,
     nested_defaultdict,
     build_data,
-    conditional_value_at_risk,
-    bootstrap_resample,
-    get_pyplot_colors,
     MarketDesigns,
+    set_style,
 )
 from market.data import BatchData
 from market.mechanism import BatchMarket
@@ -41,7 +39,7 @@ def simulate_batch(
     market_designs: dict,
     train_payment: float,
     test_payment: float,
-):
+) -> Dict:
     results = {}
     for market_design, config in market_designs.items():
         task = config["task"](**config["kwargs"])
@@ -65,7 +63,7 @@ def parse_results(
     stages: Sequence[str],
     metrics: Sequence[str],
     market_designs: Sequence[str],
-):
+) -> Dict:
     parsed_results = nested_defaultdict(
         4,
         lambda: np.zeros((num_agent_coefficients, num_train_sizes, num_sellers)),
@@ -102,34 +100,18 @@ def plot_shapley_convergence(
     train_sizes: np.ndarray,
     agent_coefficient_index: int,
     savedir: Path,
-):
-    # fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 5), sharex=True, sharey=False)
+) -> None:
     fig1, ax1 = plt.subplots(1, figsize=(6.2, 2.6), sharex=True, sharey=False)
     fig2, ax2 = plt.subplots(1, figsize=(6.2, 2.6), sharex=True, sharey=False)
 
-    from helpers import (
-        get_classic_colors,
-        get_julia_colors,
-        get_pyplot_colors,
-        get_viridis_colors,
-    )
-
-    pyplot_colors = get_classic_colors()
-    colors = cycle([pyplot_colors[3], pyplot_colors[2], pyplot_colors[1], "orange"])
     colors = cycle(["magenta", "blue", "darkorange", "limegreen"])
-
     line_styles = cycle(["-", "--"])
-
-    markers = cycle(["*", "o", "s"])
 
     custom_lines = []
     for market_design in market_designs:
         market_results = results[market_design]
         contributions = market_results["train"]["contributions"]
         allocations = market_results["train"]["allocations"]
-
-        marker = next(markers)
-
         color = next(colors)
         for seller in (0, 1):
             ax1.plot(
@@ -153,26 +135,6 @@ def plot_shapley_convergence(
                 color=color,
                 markersize=6,
             )
-            # ax2.plot(
-            #     train_sizes,
-            #     allocations.sum(axis=1).mean(axis=2)[:, agent_coefficient_index],
-            #     color=color,
-            #     ls="-",
-            #     lw=1,
-            #     marker=marker,
-            #     markerfacecolor="None",
-            # )
-
-        # else:
-        #     ax2.plot(
-        #         train_sizes,
-        #         np.ones(len(train_sizes)),
-        #         # ls="dashed",
-        #         markerfacecolor="None",
-        #         lw=1,
-        #         color="gray",
-        #         markersize=6,
-        #     )
 
         custom_lines.append(Line2D([0], [0], color=color, lw=1))
 
@@ -210,171 +172,13 @@ def plot_shapley_convergence(
     save_figure(fig2, savedir, f"allocation_convergence", tight=True)
 
 
-def plot_sample_size_sensitivity(
-    results: dict,
-    market_designs: Sequence,
-    sample_sizes: np.ndarray,
-    agent_index: int,
-    agent_coefficient_index: int,
-    savedir: Path,
-    num_bootstraps: int = 1000,
-    lower_quantile: float = 0.05,
-    upper_quantile: float = 0.05,
-):
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(5.7, 2.5), sharex=True, sharey=True)
-
-    pyplot_colors = get_pyplot_colors()
-
-    colors = cycle([pyplot_colors[2], pyplot_colors[1], pyplot_colors[0]])
-
-    line_styles = cycle(["-", "--"])
-
-    custom_lines = []
-    for market_design in market_designs:
-        market_results = results[market_design]
-
-        color = next(colors)
-        for stage, ax in zip(("train", "test"), (ax1, ax2)):
-            payments = np.swapaxes(market_results[stage]["payments"], 0, -1)
-            bootstraps = bootstrap_resample(
-                payments, num_bootstraps, int(len(payments) / 10)
-            )
-            expected_value = bootstraps.mean(axis=0)
-            expected_shortfall = conditional_value_at_risk(
-                bootstraps, axis=0, alpha=0.05
-            )
-
-            def get_statistics(metric):
-                mean = metric.mean(axis=0)[agent_index, agent_coefficient_index, :]
-                confidence_interval = []
-                for bound in (lower_quantile, upper_quantile):
-                    quantile = np.quantile(metric, bound, axis=0)[
-                        agent_index, agent_coefficient_index, :
-                    ]
-                    interval = np.abs(quantile - mean)
-                    confidence_interval.append(interval)
-
-                return mean, confidence_interval
-
-            ev_mean, ev_ci = get_statistics(expected_value)
-            es_mean, es_ci = get_statistics(expected_shortfall)
-
-            ax.errorbar(
-                sample_sizes,
-                ev_mean,
-                yerr=ev_ci,
-                label=market_design.value,
-                ls=next(line_styles),
-                lw=1,
-                color=color,
-            )
-            ax.errorbar(
-                sample_sizes,
-                es_mean,
-                yerr=es_ci,
-                ls=next(line_styles),
-                lw=1,
-                color=color,
-            )
-
-        custom_lines.append(Line2D([0], [0], color=color, lw=1))
-
-    ax1.set_ylabel("Revenue (EUR)")
-    ax2.set_ylabel("Revenue (EUR)")
-
-    for i, ax in enumerate((ax1, ax2)):
-        ax.set_xlabel("Sample Size")
-        ax.set_xscale("log")
-        ax.set_xticks([10, 100, 1000])
-        # ax.ticklabel_format(
-        #     axis="y", style="scientific", scilimits=(1, 0), useMathText=True
-        # )
-        if i == 1:
-            ax.yaxis.set_tick_params(labelbottom=True)
-        if i == 0:
-            ax.legend(
-                custom_lines,
-                [market_design.value for market_design in market_designs],
-                framealpha=0,
-            )
-
-    save_figure(fig, savedir, f"sample_size_sensitivity", tight=True)
-
-
-def plot_coefficient_magnitude_sensitivity(
-    results: dict,
-    market_designs: Sequence,
-    agent_coefficients: np.ndarray,
-    agent_index: int,
-    train_size_index: int,
-    savedir: Path,
-):
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(5.7, 2.5), sharex=True, sharey=True)
-
-    pyplot_colors = get_pyplot_colors()
-    colors = cycle([pyplot_colors[2], pyplot_colors[1], pyplot_colors[0]])
-
-    custom_lines = []
-    for market_design in market_designs:
-        market_results = results[market_design]
-        color = next(colors)
-
-        for stage, ax in zip(("train", "test"), (ax1, ax2)):
-            payments = np.swapaxes(market_results[stage]["payments"], 0, -1)
-            bootstraps = bootstrap_resample(payments, num_bootstraps=1000)
-            expected_value = bootstraps.mean(axis=0)
-            expected_shortfall = conditional_value_at_risk(
-                bootstraps, axis=0, alpha=0.05
-            )
-
-            def calculate_mean(metric):
-                return metric.mean(axis=0)[agent_index, :, train_size_index]
-
-            ev_mean = calculate_mean(expected_value)
-            es_mean = calculate_mean(expected_shortfall)
-
-            sigma, offset = 8, 10
-            ax.errorbar(
-                agent_coefficients[offset:-offset],
-                gaussian_filter(ev_mean, sigma)[offset:-offset],
-                label=market_design.value,
-                color=color,
-                lw=1,
-            )
-            ax.errorbar(
-                agent_coefficients[offset:-offset],
-                gaussian_filter(es_mean, sigma)[offset:-offset],
-                color=color,
-                lw=1,
-                ls="dashed",
-            )
-
-        custom_lines.append(Line2D([0], [0], color=color, lw=1))
-
-    for i, ax in enumerate((ax1, ax2)):
-        ax.set_xlabel("$w_2$")
-        ax.set_ylabel("Revenue (EUR)")
-        ax.axhline(y=0, lw=1, c="gray")
-        # ax.ticklabel_format(
-        #     axis="y", style="scientific", scilimits=(1, 0), useMathText=True
-        # )
-
-        if i == 1:
-            ax.yaxis.set_tick_params(labelbottom=True)
-        if i == 0:
-            ax.legend(
-                custom_lines,
-                [market_design.value for market_design in market_designs],
-                framealpha=0,
-            )
-    save_figure(fig, savedir, f"coefficient_magnitude_sensitivity", tight=True)
-
-
-def main():
+def main() -> None:
     logger = create_logger(__name__)
     logger.info("Running sensitivity analysis")
 
     savedir = Path(__file__).parent / "docs/sim06-sensitivity-analysis"
+
+    set_style()
 
     experiments = {
         "case0": {  # Shapley convergence
@@ -386,43 +190,8 @@ def main():
             "train_sizes": np.geomspace(10, 10000, 4),
             "agent_coefficients": np.array([0.7]),
             "coefficients_function": lambda c: np.atleast_2d([-0.1, 0.8, c, -0.9]).T,
-        },
-        # "case1": {  # Varying sample size
-        #     "noise_variance": 1,
-        #     "regularization": 1e-32,
-        #     "num_simulations": 500,
-        #     "test_payment": 0.03,
-        #     "test_size": 1000,
-        #     "train_sizes": np.geomspace(10, 1000, 3),
-        #     "agent_coefficients": np.array([0]),
-        #     "coefficients_function": lambda c: np.atleast_2d(
-        #         [0.1, -0.5, c, 0.7]
-        #     ).T,
-        # },
-        # "case2": {  # Varying coefficient magnitude
-        #     "noise_variance": 1,
-        #     "regularization": 1e-32,
-        #     "num_simulations": 500,
-        #     "test_payment": 0.03,
-        #     "test_size": 1000,
-        #     # "train_sizes": [10, 20, 30, 40, 50, 100],
-        #     "train_sizes": [20],
-        #     "agent_coefficients": np.concatenate(
-        #         (-np.linspace(0, 1.1, 110)[::-1], np.linspace(0, 1.1, 110))
-        #     ),
-        #     "coefficients_function": lambda c: np.atleast_2d(
-        #         [0.1, -0.5, c, 0.7]
-        #     ).T,
-        # },
+        }
     }
-
-    plt.rc("text", usetex=True)
-    plt.rc("font", family="serif")
-    plt.rc("font", size=12)  # controls default text sizes
-    plt.rc("axes", labelsize=12)  # fontsize of the x and y labels
-    plt.rc("xtick", labelsize=12)  # fontsize of the tick labels
-    plt.rc("ytick", labelsize=12)  # fontsize of the tick labels
-    plt.rc("legend", fontsize=12)  # legend fontsize
 
     for experiment_title, config in experiments.items():
         experiment_location = savedir / experiment_title
@@ -559,24 +328,6 @@ def main():
             agent_coefficient_index=0,
             savedir=experiment_location,
         )
-
-        # plot_sample_size_sensitivity(
-        #     results=parsed_results,
-        #     market_designs=list(MarketDesigns)[1:],
-        #     sample_sizes=train_sizes,
-        #     agent_index=0,
-        #     agent_coefficient_index=0,
-        #     savedir=experiment_location,
-        # )
-
-        # plot_coefficient_magnitude_sensitivity(
-        #     results=parsed_results,
-        #     market_designs=list(MarketDesigns)[1:],
-        #     agent_coefficients=agent_coefficients,
-        #     agent_index=0,
-        #     train_size_index=0,
-        #     savedir=experiment_location,
-        # )
 
 
 if __name__ == "__main__":

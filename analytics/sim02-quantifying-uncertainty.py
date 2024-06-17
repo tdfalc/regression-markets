@@ -1,6 +1,6 @@
 from pathlib import Path
 import os
-from typing import Dict
+from typing import Dict, Tuple
 
 import numpy as np
 from matplotlib import cm
@@ -14,17 +14,16 @@ from market.task import BayesianLinearRegression
 from market.data import BatchData
 from market.mechanism import BatchMarket
 from market.policy import NllShapleyPolicy
-from analytics.helpers import save_figure, add_dummy, get_julia_colors
+from analytics.helpers import save_figure, add_dummy, set_style
 from common.log import create_logger
 
 
-def make_regression(coefficients: np.ndarray, noise_variance: float, sample_size: int):
+def make_regression(
+    coefficients: np.ndarray, noise_variance: float, sample_size: int
+) -> Tuple[np.ndarray[float], np.ndarray[float]]:
     X = add_dummy(
         np.random.multivariate_normal(np.zeros(3), np.eye(3), size=sample_size)
     )
-
-    # X = add_dummy(np.random.uniform(size=(sample_size, 3)) * 2 - 1)
-
     y = X @ coefficients + np.random.normal(
         scale=np.sqrt(noise_variance), size=(sample_size, 1)
     )
@@ -36,7 +35,7 @@ def plot_posterior(
     ax: mpl.axes.SubplotBase,
     distribution: mvn_frozen,
     coefficients: np.ndarray,
-):
+) -> None:
     resolution = 1000
     grid_x = grid_y = np.linspace(-1, 1, resolution)
     grid_flat = np.dstack(np.meshgrid(grid_x, grid_y)).reshape(-1, 2)
@@ -62,97 +61,34 @@ def plot_predictive_uncertainty(
     y_pred_variance: np.ndarray,
     color: str = "C0",
     label: str = None,
-):
+) -> None:
     nll = -stats.norm.logpdf(
         y_test,
         loc=y_pred_mean,
         scale=y_pred_variance**0.5,
     )
 
-    import seaborn as sns
-
-    # sns.kdeplot(
-    #     nll.flatten(),
-    #     ax=ax,
-    #     color=color,
-    #     # bins=30,
-    # ).set(xlim=(0))
-    # ax.set_xlim([0, 5])
-
-    def bs(x, num_samples=1000):
-        n = len(x)
-
-        # Generate an array of shape (num_samples, n) with bootstrap samples
-        bootstrap_samples = np.random.choice(x, (num_samples, n), replace=True)
-
+    def bootstrap(x, num_samples=1000):
+        # Generate an array of shape (num_samples, len(x)) with bootstrap samples
+        bootstrap_samples = np.random.choice(x, (num_samples, len(x)), replace=True)
         # Calculate the mean of each bootstrap sample along the axis 1
-        bootstrap_means = np.mean(bootstrap_samples, axis=1)
+        return np.mean(bootstrap_samples, axis=1)
 
-        # Calculate the Monte Carlo mean (mean of the bootstrap means)
+    bootstraps = bootstrap(nll.flatten())
 
-        return bootstrap_means
-
-    bootstraps = bs(nll.flatten())
-
-    # sns.kdeplot(
-    #     nll.flatten(),
-    #     ax=ax,
-    #     color=color,
-    #     # bins=30,
-    # ).set(xlim=(0))
-    # ax.set_xlim([0, 5])
-
-    ax.hist(
-        bootstraps,
-        color=color,
-        alpha=0.4,
-        histtype="stepfilled",
-        label=label,
-        # bins=10,
-    )
-    ax.hist(
-        bootstraps,
-        color=color,
-        histtype="step",
-        label=label,
-        lw=1.5,
-        # bins=10,
-    )
-
+    ax.hist(bootstraps, color=color, alpha=0.4, histtype="stepfilled", label=label)
+    ax.hist(bootstraps, color=color, histtype="step", label=label, lw=1.5)
     ax.set_xlabel("Negative Log Likelihood")
     ax.set_ylabel("Count")
-
     legend_element = Patch(
         facecolor=color + "44", edgecolor=color, label=label, linewidth=1.5
     )
     return legend_element
 
 
-def plot_payments(
-    ax: mpl.axes.SubplotBase,
-    market_output: Dict,
-    sample_size: int,
-    color: str,
-):
+def plot_payments(ax: mpl.axes.SubplotBase, market_output: Dict, color: str) -> None:
     payments = market_output["train"]["payments"] / 1
-    # for i in range(1, sample_size + 1):
-    #     ax.scatter(
-    #         [1, 2],
-    #         i * payments,
-    #         color=color,
-    #         marker="_",
-    #         lw=0.6,
-    #         s=500,
-    #     )
-    #     ax.scatter(
-    #         [0],
-    #         i * -payments.sum(),
-    #         color=color,
-    #         marker="_",
-    #         lw=0.6,
-    #         s=500,
-    #     )
-    print(payments.shape)
+
     ax.bar(
         np.arange(3),
         np.append(-payments.sum(), payments),
@@ -169,12 +105,14 @@ def plot_payments(
     ax.set_ylabel("Revenue (EUR)")
 
 
-def main():
+def main() -> None:
     logger = create_logger(__name__)
     logger.info("Running quantifying uncertainty analysis")
 
     savedir = Path(__file__).parent / "docs/sim02-quantifying-uncertainty"
     os.makedirs(savedir, exist_ok=True)
+
+    set_style()
 
     coefficients = np.array([[-0.11], [0.31], [0.08], [0.65]])
     noise_variance = 1 / 1.24
@@ -192,16 +130,6 @@ def main():
     ]
 
     fig = plt.figure(figsize=(8, 6.8))
-    julia_colors = get_julia_colors()
-
-    plt.rc("text", usetex=True)
-    plt.rc("font", family="serif")
-    plt.rc("font", size=12)  # controls default text sizes
-    plt.rc("axes", labelsize=12)  # fontsize of the x and y labels
-    plt.rc("xtick", labelsize=12)  # fontsize of the tick labels
-    plt.rc("ytick", labelsize=12)  # fontsize of the tick labels
-    plt.rc("legend", fontsize=12)  # legend fontsize
-
     axs = np.empty((len(experiments), 3), dtype=mpl.axes.SubplotBase)
 
     for i, experiment in enumerate(experiments):
@@ -233,14 +161,8 @@ def main():
         )
         y_pred_buyer = task._predict(X_test[:, [0, 1]], posterior_buyer, noise_variance)
 
-        print("Buyer", y_pred_buyer[0][0], y_pred_buyer[1][0])
-        print("GC", y_pred_grand_coalition[0][0], y_pred_grand_coalition[1][0])
-
         axs[i, 1] = plt.subplot(len(experiments), 3, i * 3 + 2)
         if i > 0:
-            # axs[i - 1, 1].get_shared_x_axes().join(axs[i, 1], axs[i - 1, 1])
-            # axs[i - 1, 1].get_shared_y_axes().join(axs[i, 1], axs[i - 1, 1])
-
             axs[i - 1, 1].sharex(axs[i, 1])
             axs[i - 1, 1].sharey(axs[i, 1])
 
@@ -277,7 +199,7 @@ def main():
         market_output = BatchMarket(market_data, task, train_payment=0.005).run(
             NllShapleyPolicy
         )
-        plot_payments(axs[i, 2], market_output, len(X_train), color="k")
+        plot_payments(axs[i, 2], market_output, color="k")
 
     fig.tight_layout()
     save_figure(fig, savedir, "bayesian_updates")

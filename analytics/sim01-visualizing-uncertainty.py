@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Tuple
 from pathlib import Path
 import os
 
@@ -19,7 +19,7 @@ def make_regression(
     num_samples: int,
     sample_size: int,
     correlation: float,
-):
+) -> Tuple[np.ndarray[float], np.ndarray[float]]:
     mean, covaraince = [0, 0], [[1, correlation], [correlation, 1]]
     size = (num_samples, sample_size)
     X = np.random.multivariate_normal(mean, covaraince, size=size)
@@ -37,7 +37,7 @@ def plot_density(
     yopt: float,
     resolution: int,
     **kwargs
-):
+) -> None:
     grid_x = grid_y = np.linspace(vmin, vmax, resolution)
     grid_flat = np.dstack(np.meshgrid(grid_x, grid_y)).reshape(-1, 2)
     densities = distribution.pdf(grid_flat).reshape(resolution, resolution)
@@ -56,7 +56,7 @@ def plot_density(
 
 def get_surface(
     z_function: Callable, vmin: float, vmax: float, resolution: int
-):
+) -> Tuple[np.ndarray[float], np.ndarray[float], np.ndarray[float]]:
     X = np.linspace(vmin, vmax, resolution)
     Y = np.linspace(vmin, vmax, resolution)
     XX, YY = np.meshgrid(X, Y)
@@ -71,7 +71,7 @@ def plot_image(
     vmin: float,
     vmax: float,
     resolution: int = 100,
-):
+) -> None:
     _, _, ZZ = get_surface(z_function, vmin, vmax, resolution)
     _ = ax.imshow(ZZ[:, ::-1], cmap=cm.rainbow, aspect="auto")
     ax.set_xticks([0, len(ZZ) / 2, len(ZZ) - 1])
@@ -89,7 +89,7 @@ def plot_contours(
     vmin: float,
     vmax: float,
     filled: bool = False,
-):
+) -> None:
     XX, YY, ZZ = get_surface(z_function)
     if filled:
         _ = ax.contourf(XX, YY, ZZ, cmap=cm.rainbow, levels=5)
@@ -102,7 +102,7 @@ def plot_contours(
     ax.axhline(y=(vmin + vmax) / 2, ls="--", c="k", lw=1)
 
 
-def main():
+def main() -> None:
     logger = create_logger(__name__)
     logger.info("Running visualizing uncertainty analysis")
 
@@ -126,9 +126,7 @@ def main():
             coefficients, noise_variance, num_samples, **experiment_config
         )
 
-        psuedo_inverse = np.linalg.inv(X.transpose(0, 2, 1) @ X) @ X.transpose(
-            0, 2, 1
-        )
+        psuedo_inverse = np.linalg.inv(X.transpose(0, 2, 1) @ X) @ X.transpose(0, 2, 1)
         mle_estimates = (psuedo_inverse @ y).reshape(-1, 2)
         mean = np.mean(mle_estimates, axis=0)
         covariance = np.cov(mle_estimates.T)

@@ -1,24 +1,18 @@
 import os
 from pathlib import Path
 from itertools import cycle
+from typing import Tuple
 
 import numpy as np
-from scipy import stats
 from joblib import delayed, Parallel
 import matplotlib.pyplot as plt
-import pandas as pd
-from scipy.ndimage import gaussian_filter
 
 from market.data import BatchData
 from market.task import BayesianLinearRegression
 from market.mechanism import BatchMarket
 from market.policy import NllShapleyPolicy
 from common.log import create_logger
-from analytics.helpers import (
-    save_figure,
-    julia_colors,
-    conditional_value_at_risk,
-)
+from analytics.helpers import save_figure, conditional_value_at_risk
 from common.utils import cache
 
 
@@ -28,10 +22,8 @@ def build_market_data(
     error_covariance: np.ndarray,
     sample_size: int,
     test_frac: float = 0.5,
-):
-    def build_var_process(
-        coefficients: np.ndarray, autocorrelations: np.ndarray
-    ):
+) -> BatchData:
+    def build_var_process(coefficients: np.ndarray, autocorrelations: np.ndarray):
         var = np.eye(len(coefficients) + 1)
         np.fill_diagonal(var, autocorrelations)
         var[0, 1:] = coefficients
@@ -81,7 +73,7 @@ def _run_experiment(
     noise_variance: float,
     regularization: float = 1e-32,
     test_frac: float = 0.5,
-):
+) -> Tuple[np.ndarray[float], np.ndarray[float]]:
     def _one_sample():
         market_data = build_market_data(
             coefficients,
@@ -108,11 +100,7 @@ def _run_experiment(
         return allocations[True], allocations[False]
 
     allocations_obs, allocations_int = list(
-        zip(
-            *Parallel(n_jobs=-1)(
-                delayed(_one_sample)() for _ in range(num_samples)
-            )
-        )
+        zip(*Parallel(n_jobs=-1)(delayed(_one_sample)() for _ in range(num_samples)))
     )
     return np.vstack(allocations_obs), np.vstack(allocations_int)
 
@@ -143,12 +131,8 @@ def run_experiment(
             test_frac=test_frac,
         )
 
-        risk_obs.append(
-            conditional_value_at_risk(allocations_obs, alpha=0.05, axis=0)
-        )
-        risk_int.append(
-            conditional_value_at_risk(allocations_int, alpha=0.05, axis=0)
-        )
+        risk_obs.append(conditional_value_at_risk(allocations_obs, alpha=0.05, axis=0))
+        risk_int.append(conditional_value_at_risk(allocations_int, alpha=0.05, axis=0))
 
     return np.vstack(risk_obs), np.vstack(risk_int)
 
@@ -160,21 +144,20 @@ def plot_results(
     savedir: Path,
 ):
     fig, ax = plt.subplots(dpi=600, figsize=(3.6, 3.2))
-    colors = cycle(julia_colors()[5:])
 
     offset = 1
     ax.plot(
         correlations[:-offset],
         risk_int[:-offset, 1],
         label="Model-Centric",
-        c=next(colors),
+        c="magenta",
         lw=2,
     )
     ax.plot(
         correlations[:-offset],
         risk_obs[:-offset, 1],
         label="Data-Centric",
-        c=next(colors),
+        c="darkorange",
         lw=2,
     )
 
@@ -196,8 +179,8 @@ if __name__ == "__main__":
 
     test_frac = 0.5
     regularization = 1e-5
-    num_samples = 5000
-    sample_size = 1500
+    num_samples = 1000
+    sample_size = 500
 
     coefficients = np.array([0.9, 0])
     autocorrelations = np.array([0.12, 0.54, 0.49])
