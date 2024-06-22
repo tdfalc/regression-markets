@@ -22,7 +22,7 @@ If you find this useful in your work, we kindly request that you cite the follow
 
 ```
 @misc{falconer2023incentivizing,
-      title={Incentivizing Data Sharing for Energy Forecasting: Analytics Markets with Correlated Data}, 
+      title={Towards Replication-Robust Analytics Markets}, 
       author={Thomas Falconer and Jalal Kazempour and Pierre Pinson},
       year={2023},
       eprint={2310.06000},

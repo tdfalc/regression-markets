@@ -10,12 +10,12 @@ from scipy.stats._multivariate import multivariate_normal_frozen as mvn_frozen
 from scipy import stats
 from matplotlib.patches import Patch
 
-from market.task import BayesianLinearRegression
-from market.data import BatchData
-from market.mechanism import BatchMarket
-from market.policy import NllShapleyPolicy
+from regression_markets.market.task import BayesianLinearRegression
+from regression_markets.market.data import BatchData
+from regression_markets.market.mechanism import BatchMarket
+from regression_markets.market.policy import NllShapleyPolicy
 from analytics.helpers import save_figure, add_dummy, set_style
-from common.log import create_logger
+from regression_markets.common.log import create_logger
 
 
 def make_regression(
@@ -115,8 +115,7 @@ def main() -> None:
     set_style()
 
     coefficients = np.array([[-0.11], [0.31], [0.08], [0.65]])
-    noise_variance = 1 / 1.24
-    noise_variance = 0.3
+    noise_variance = 1 / 3.31
     regularization = 1e-6
     test_size = 100
 

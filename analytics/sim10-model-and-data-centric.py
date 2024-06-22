@@ -9,11 +9,11 @@ from joblib import delayed, Parallel
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from market.data import BatchData
-from market.task import BayesianLinearRegression
-from market.mechanism import BatchMarket
-from market.policy import NllShapleyPolicy
-from common.log import create_logger
+from regression_markets.market.data import BatchData
+from regression_markets.market.task import BayesianLinearRegression
+from regression_markets.market.mechanism import BatchMarket
+from regression_markets.market.policy import NllShapleyPolicy
+from regression_markets.common.log import create_logger
 from analytics.helpers import save_figure
 
 

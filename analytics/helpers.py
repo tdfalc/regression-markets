@@ -5,10 +5,10 @@ from typing import Callable, Any, Sequence
 
 import numpy as np
 from matplotlib.colors import to_hex
-from matplotlib.cm import get_cmap
+from matplotlib.pyplot import get_cmap
 import matplotlib.pyplot as plt
 
-from market.data import BatchData
+from regression_markets.market.data import BatchData
 
 
 def set_style() -> None:

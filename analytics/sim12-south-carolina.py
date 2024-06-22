@@ -14,17 +14,17 @@ from shapely.geometry import Point
 from tqdm import tqdm
 from joblib import Parallel, delayed
 
-from market.data import BatchData
-from market.task import (
+from regression_markets.market.data import BatchData
+from regression_markets.market.task import (
     BayesianLinearRegression,
     MaximumLikelihoodLinearRegression,
     Task,
 )
-from market.policy import NllShapleyPolicy
-from market.mechanism import BatchMarket
-from common.log import create_logger
+from regression_markets.market.policy import NllShapleyPolicy
+from regression_markets.market.mechanism import BatchMarket
+from regression_markets.common.log import create_logger
 from analytics.helpers import save_figure, get_discrete_colors
-from common.utils import cache
+from regression_markets.common.utils import cache
 
 
 class NllBanzhafPolicy(NllShapleyPolicy):
@@ -179,7 +179,7 @@ def build_market_data(
 
 def plot_raw_data(raw_data: pd.DataFrame, savedir: Path) -> None:
     fig, ax = plt.subplots(dpi=300, figsize=(6, 4))
-    for wf, data in raw_data.groupby(pd.Grouper(freq="SM")).mean().iteritems():
+    for wf, data in raw_data.groupby(pd.Grouper(freq="SM")).mean().items():
         ax.plot(data, label=wf)
     ax.legend(ncol=5)
     ax.set_xlabel("Date")

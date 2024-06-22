@@ -9,14 +9,14 @@ import numpy as np
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
-from market.task import (
+from regression_markets.market.task import (
     BayesianLinearRegression,
     MaximumLikelihoodLinearRegression,
     Task,
 )
 from analytics.helpers import save_figure, add_dummy, set_style
-from common.log import create_logger
-from common.utils import tqdm_joblib, cache
+from regression_markets.common.log import create_logger
+from regression_markets.common.utils import tqdm_joblib, cache
 
 
 def build_data(

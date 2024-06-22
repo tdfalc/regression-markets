@@ -12,8 +12,8 @@ import numpy as np
 from tqdm import tqdm
 from scipy.ndimage import gaussian_filter
 
-from common.log import create_logger
-from common.utils import tqdm_joblib, cache
+from regression_markets.common.log import create_logger
+from regression_markets.common.utils import tqdm_joblib, cache
 from analytics.helpers import (
     save_figure,
     nested_defaultdict,
@@ -21,14 +21,14 @@ from analytics.helpers import (
     MarketDesigns,
     set_style,
 )
-from market.data import BatchData
-from market.mechanism import BatchMarket
-from market.policy import (
+from regression_markets.market.data import BatchData
+from regression_markets.market.mechanism import BatchMarket
+from regression_markets.market.policy import (
     NllShapleyPolicy,
     KldContributionModShapleyPolicy,
     KldCfModShapleyPolicy,
 )
-from market.task import (
+from regression_markets.market.task import (
     BayesianLinearRegression,
     MaximumLikelihoodLinearRegression,
 )

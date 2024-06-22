@@ -10,11 +10,11 @@ from tqdm import tqdm
 from joblib import Parallel, delayed
 from functools import partial
 
-from common.log import create_logger
-from common.utils import cache, tqdm_joblib
-from market.task import OnlineBayesianLinearRegression
-from market.data import MarketData
-from market.mechanism import OnlineMarket
+from regression_markets.common.log import create_logger
+from regression_markets.common.utils import cache, tqdm_joblib
+from regression_markets.market.task import OnlineBayesianLinearRegression
+from regression_markets.market.data import MarketData
+from regression_markets.market.mechanism import OnlineMarket
 from analytics.helpers import (
     save_figure,
     build_input,
@@ -24,7 +24,7 @@ from analytics.helpers import (
     MarketDesigns,
     set_style,
 )
-from market.policy import (
+from regression_markets.market.policy import (
     NllShapleyPolicy,
     KldCfModShapleyPolicy,
     KldContributionModShapleyPolicy,

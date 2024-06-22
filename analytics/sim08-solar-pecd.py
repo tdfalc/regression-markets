@@ -15,16 +15,16 @@ from scipy.ndimage import gaussian_filter
 import numpy as np
 import matplotlib.pyplot as plt
 
-from common.log import create_logger
-from common.utils import cache
-from market.task import (
+from regression_markets.common.log import create_logger
+from regression_markets.common.utils import cache
+from regression_markets.market.task import (
     MaximumLikelihoodLinearRegression,
     OnlineBayesianLinearRegression,
 )
-from market.data import MarketData, BatchData
-from market.mechanism import OnlineMarket
+from regression_markets.market.data import MarketData, BatchData
+from regression_markets.market.mechanism import OnlineMarket
 from analytics.helpers import save_figure, get_discrete_colors, set_style
-from market.policy import NllShapleyPolicy
+from regression_markets.market.policy import NllShapleyPolicy
 
 
 def process_raw_data(
@@ -194,7 +194,6 @@ def main():
     url = "https://data.dtu.dk/ndownloader/files/35039785"
 
     start = dt(2018, 1, 1, 0, 0, tzinfo=pytz.utc)
-    # start = dt(2019, 6, 1, 0, 0, tzinfo=pytz.utc)
     end = dt(2019, 12, 31, 23, 30, tzinfo=pytz.utc)
     policy = NllShapleyPolicy
     target_codes = ["UK", "BE", "AT", "GR", "CY", "TR"]

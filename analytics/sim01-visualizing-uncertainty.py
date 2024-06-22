@@ -9,7 +9,7 @@ import matplotlib as mpl
 from matplotlib import pyplot as plt
 from scipy.stats._multivariate import multivariate_normal_frozen as mvn_frozen
 
-from common.log import create_logger
+from regression_markets.common.log import create_logger
 from analytics.helpers import save_figure
 
 

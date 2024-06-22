@@ -4,7 +4,7 @@ import os
 import numpy as np
 from matplotlib import pyplot as plt
 
-from common.log import create_logger
+from regression_markets.common.log import create_logger
 from analytics.helpers import save_figure
 
 

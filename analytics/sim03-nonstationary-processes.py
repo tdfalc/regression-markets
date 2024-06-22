@@ -9,9 +9,9 @@ from matplotlib import pyplot as plt
 from tqdm import tqdm
 
 
-from market.task import OnlineBayesianLinearRegression
-from common.log import create_logger
-from common.utils import cache, tqdm_joblib
+from regression_markets.market.task import OnlineBayesianLinearRegression
+from regression_markets.common.log import create_logger
+from regression_markets.common.utils import cache, tqdm_joblib
 from analytics.helpers import save_figure, set_style
 
 

@@ -11,12 +11,12 @@ from tqdm import tqdm
 from joblib import delayed, Parallel
 from matplotlib import pyplot as plt
 
-from market.task import (
+from regression_markets.market.task import (
     BayesianLinearRegression,
     MaximumLikelihoodLinearRegression,
 )
-from common.utils import tqdm_joblib, cache
-from common.log import create_logger
+from regression_markets.common.utils import tqdm_joblib, cache
+from regression_markets.common.log import create_logger
 from analytics.helpers import (
     save_figure,
     build_data,
@@ -25,13 +25,13 @@ from analytics.helpers import (
     MarketDesigns,
     set_style,
 )
-from market.data import BatchData
-from market.policy import (
+from regression_markets.market.data import BatchData
+from regression_markets.market.policy import (
     KldCfModShapleyPolicy,
     KldContributionModShapleyPolicy,
     NllShapleyPolicy,
 )
-from market.mechanism import BatchMarket
+from regression_markets.market.mechanism import BatchMarket
 
 
 def simulate_batch(

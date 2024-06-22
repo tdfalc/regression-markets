@@ -1,13 +1,12 @@
 import os
 from pathlib import Path
-from itertools import cycle
 
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy import stats
 import pandas as pd
 
-from common.log import create_logger
+from regression_markets.common.log import create_logger
 from analytics.helpers import save_figure
 
 
