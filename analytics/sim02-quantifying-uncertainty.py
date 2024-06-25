@@ -118,6 +118,7 @@ def main() -> None:
     noise_variance = 1 / 3.31
     regularization = 1e-6
     test_size = 100
+    train_payment = 0.005
 
     X, y = make_regression(coefficients, noise_variance, sample_size=100)
     X_test, y_test = make_regression(coefficients, 0, sample_size=test_size)
@@ -195,7 +196,7 @@ def main() -> None:
         market_data = BatchData(
             X_train[:, [0]], X_train[:, [1]], X_train[:, 2:], y_train
         )
-        market_output = BatchMarket(market_data, task, train_payment=0.005).run(
+        market_output = BatchMarket(market_data, task, train_payment=train_payment).run(
             NllShapleyPolicy
         )
         plot_payments(axs[i, 2], market_output, color="k")
