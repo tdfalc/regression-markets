@@ -106,7 +106,10 @@ class RegressionImputer(Imputer):
     def clear_secondary_market(
         self, x: np.ndarray, missing_indicator: np.ndarray, primary_payments: np.ndarray
     ):
+
         payments = np.zeros(self.X_train.shape[1])
+        if np.sum(missing_indicator) == self.market_data.num_support_agent_features:
+            return payments[1 + self.num_central_agent_features :]
         if np.sum(missing_indicator) == 0:  # No missing features
             return payments[1 + self.num_central_agent_features :]
         for i in self._support_agent_indices[missing_indicator]:

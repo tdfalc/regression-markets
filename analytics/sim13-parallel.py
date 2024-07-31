@@ -35,22 +35,28 @@ if __name__ == "__main__":
     num_feats = len(coeffs)
     payment = 1
 
-    missing_probabilities = np.array([0, 0.5])
+    missing_probabilities = np.array([0.0, 0.5])
 
     imputation_methods = [
         ImputationMethod.no,
         ImputationMethod.mean,
         ImputationMethod.ols,
-        ImputationMethod.blr,
+        # ImputationMethod.blr,
         # ImputationMethod.gpr,
     ]
 
     # @cache(save_dir=cache_location, use_cache=True)
     def _run_experiments():
         def _run_experiment():
-            rho = 0.6
+            rho = 0.9
             X = np.random.multivariate_normal(
-                [0, 0, 0], [[1, 0, 0], [0, 1, rho], [0, rho, 1]], size=sample_size
+                [0, 0, 0],
+                [
+                    [1, 0, 0],
+                    [0, 1, rho],
+                    [0, rho, 1],
+                ],
+                size=sample_size,
             )
 
             X = np.column_stack((np.ones(len(X)).reshape(-1, 1), X))
@@ -90,14 +96,14 @@ if __name__ == "__main__":
         ImputationMethod.no: "No-missing",
         ImputationMethod.mean: "Mean imputation",
         ImputationMethod.ols: "Deterministic imputation",
-        ImputationMethod.blr: "Probabilistic imputation",
+        # ImputationMethod.blr: "Probabilistic imputation",
     }
 
     imputation_methods = [
         ImputationMethod.no,
         ImputationMethod.mean,
         ImputationMethod.ols,
-        ImputationMethod.blr,
+        # ImputationMethod.blr,
         # ImputationMethod.gpr,
     ]
 
@@ -121,7 +127,8 @@ if __name__ == "__main__":
 
     (axs1, axs2) = axs.flatten()[[0, 2]], axs.flatten()[[1, 3]]
 
-    markers = ["*", "o", "s", "x"]
+    markers = ["s", "o", "*", "x"]
+    markevery = 5
 
     metric = "payments"
     for i, method in enumerate(imputation_methods):
@@ -134,13 +141,16 @@ if __name__ == "__main__":
             primary_payments.cumsum(axis=1).mean(axis=0)[:, j] / num_runs,
             label=label_map[method] if j == 0 else "",
             color=f"C{i}",
-            # marker=markers[i],
+            marker=markers[i],
+            markevery=markevery,
         )
         axs.flatten()[1].plot(
-            secondary_payments.cumsum(axis=1).mean(axis=0)[:, j] / num_runs,
+            primary_payments.cumsum(axis=1).mean(axis=0)[:, j] / num_runs
+            + secondary_payments.cumsum(axis=1).mean(axis=0)[:, j] / num_runs,
             label="",
             color=f"C{i}",
-            # marker=markers[i],
+            marker=markers[i],
+            markevery=markevery,
         )
 
         j = 1
@@ -148,13 +158,16 @@ if __name__ == "__main__":
             primary_payments.cumsum(axis=1).mean(axis=0)[:, j] / num_runs,
             label=label_map[method] if j == 0 else "",
             color=f"C{i}",
-            # marker=markers[i],
+            marker=markers[i],
+            markevery=markevery,
         )
         axs.flatten()[3].plot(
-            secondary_payments.cumsum(axis=1).mean(axis=0)[:, j] / num_runs,
+            primary_payments.cumsum(axis=1).mean(axis=0)[:, j] / num_runs
+            + secondary_payments.cumsum(axis=1).mean(axis=0)[:, j] / num_runs,
             label="",
             color=f"C{i}",
-            # marker=markers[i],
+            marker=markers[i],
+            markevery=markevery,
         )
 
         axs.flatten()[0].set_title("Agent 1 (p(missing) = 0)")
@@ -174,7 +187,7 @@ if __name__ == "__main__":
     axs.flatten()[0].legend()
 
     fig.suptitle(
-        "          Primary Market                                                       Secondary Market",
+        "          Primary Market                                                       Total Market",
         y=0.97,
         fontsize=14,
     )

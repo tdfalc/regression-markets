@@ -82,6 +82,7 @@ class ShapleyAttributionPolicy:
                 )
 
             marginal_contributions.append(agent_marginal_contributions)
+
         return np.array(marginal_contributions).sum(axis=1)
 
     def run(
