@@ -7,7 +7,7 @@ from scipy import stats
 import pandas as pd
 
 from regression_markets.common.log import create_logger
-from analytics.helpers import save_figure
+from analytics.helpers import save_figure, tweak
 
 
 def plot_manifold(savedir: Path) -> None:
@@ -51,12 +51,18 @@ def plot_manifold(savedir: Path) -> None:
     ax.legend(loc="upper left")
     ax.set_xlabel("$x_1$")
     ax.set_ylabel("$x_2$")
+    tweak(ax=ax)
     save_figure(fig, savedir, "manifold")
 
 
 if __name__ == "__main__":
     logger = create_logger(__name__)
     logger.info("Running manifold plot analysis")
+
+    plt.rcParams["text.usetex"] = True
+    plt.rcParams["font.size"] = 12
+    plt.rcParams["mathtext.fontset"] = "cm"  # Use CM for math font.
+    plt.rcParams["figure.autolayout"] = True  # Use tight layouts.
 
     savedir = Path(__file__).parent / "docs/sim09-manifold-plot"
     os.makedirs(savedir, exist_ok=True)

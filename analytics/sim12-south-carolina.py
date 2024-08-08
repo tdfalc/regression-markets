@@ -20,11 +20,42 @@ from regression_markets.market.task import (
     MaximumLikelihoodLinearRegression,
     Task,
 )
-from regression_markets.market.policy import NllShapleyPolicy
+from regression_markets.market.policy import NllShapleyPolicy, SemivaluePolicy
 from regression_markets.market.mechanism import BatchMarket
 from regression_markets.common.log import create_logger
 from analytics.helpers import save_figure, get_discrete_colors
 from regression_markets.common.utils import cache
+
+
+# def shapley_approx(
+#     agent: int,
+#     baseline_agents: Sequence,
+#     permutations: Sequence,
+#     policy: SemivaluePolicy,
+#     X: np.ndarray,
+#     y: np.ndarray,
+#     sample_size: int,
+# ) -> float:
+
+#     def _contribution(i):
+#         coalition = permutations[i]
+#         agents_before = []
+#         for j in coalition:
+#             if j == agent:
+#                 break
+#             agents_before.append(j)
+#         indices = list(baseline_agents) + agents_before
+#         value_before = policy._value(X, y, indices=indices)
+#         indices += [agent]
+#         value_after = policy._value(X, y, indices=indices)
+#         return (value_before - value_after) / sample_size
+
+#     return np.sum(
+#         Parallel(n_jobs=-1, verbose=1)(
+#             delayed(_contribution)(i)
+#             for i in np.random.choice(np.arange(len(permutations)), size=sample_size)
+#         )
+#     )
 
 
 class NllBanzhafPolicy(NllShapleyPolicy):
@@ -311,6 +342,7 @@ def plot_results(results: Dict, max_replications: int, savedir: Path) -> None:
             allocations_after = (
                 results[policy][max_replications][stage][metric].flatten() * 100
             )
+            print(policy, stage, allocations_before)
 
             # Combine revenue of replicated features
             allocations_after_agg = _add_replicate_revenue(
@@ -468,7 +500,7 @@ if __name__ == "__main__":
     num_samples = None
     central_agent = "a1"
     regularization = 1e-32
-    max_replications = 5  # 6
+    max_replications = 3  # 5  # 6
     agents = ["a1", "a4", "a5", "a6", "a7", "a8", "a9"]
     experiments = {
         "Shapley-Int": {
@@ -538,10 +570,10 @@ if __name__ == "__main__":
 
     results = _run_experiments()
 
-    plot_results(results, max_replications=4, savedir=savedir)
-    plot_policy_comparison(
-        results,
-        experiments.keys(),
-        max_replications,
-        savedir,
-    )
+    plot_results(results, max_replications=3, savedir=savedir)
+    # plot_policy_comparison(
+    #     results,
+    #     experiments.keys(),
+    #     max_replications,
+    #     savedir,
+    # )
