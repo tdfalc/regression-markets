@@ -8,6 +8,8 @@ from scipy import stats
 from joblib import delayed, Parallel
 import matplotlib.pyplot as plt
 import pandas as pd
+from tfds.plotting import prettify, use_tex
+
 
 from regression_markets.market.data import BatchData
 from regression_markets.market.task import BayesianLinearRegression
@@ -169,6 +171,8 @@ def plot_results(
 if __name__ == "__main__":
     logger = create_logger(__name__)
     logger.info("Running model and data centric analysis")
+
+    use_tex()
 
     savedir = Path(__file__).parent / "docs/sim10-model-and-data-centric"
     os.makedirs(savedir, exist_ok=True)

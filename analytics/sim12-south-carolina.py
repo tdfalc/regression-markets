@@ -3,6 +3,7 @@ from typing import Sequence, Dict
 from collections import defaultdict
 from pathlib import Path
 import math
+from joblib import Parallel, delayed
 
 import pandas as pd
 import json
@@ -12,7 +13,7 @@ import numpy as np
 import geopandas as gpd
 from shapely.geometry import Point
 from tqdm import tqdm
-from joblib import Parallel, delayed
+from tfds.plotting import use_tex, prettify
 
 from regression_markets.market.data import BatchData
 from regression_markets.market.task import (
@@ -299,6 +300,7 @@ def plot_map(
 
     ax.set_xlabel("Longitude")
     ax.set_ylabel("Latitude")
+    prettify(ax=ax, legend=False)
     save_figure(fig, savedir, "map")
 
 
@@ -334,10 +336,14 @@ def plot_results(results: Dict, max_replications: int, savedir: Path) -> None:
     metric = "allocations"
     colors = get_discrete_colors("viridis", 8)[-2:]
 
-    for policy in ("Shapley-Obs", "Shapley-Int"):
-        fig, ax = plt.subplots(figsize=(3.6, 3.2), dpi=300)
+    colors = ["grey", "white"]
 
-        for stage, hatch, color in zip(("train", "test"), ("//", ".."), colors):
+    for policy in ("Shapley-Obs", "Shapley-Int"):
+
+        # fig, ax = plt.subplots(figsize=(4, 3), dpi=300)
+        fig, ax = plt.subplots(figsize=(6.5, 3), dpi=300)
+
+        for stage, color in zip(("train", "test"), colors):
             allocations_before = results[policy][0][stage][metric].flatten() * 100
             allocations_after = (
                 results[policy][max_replications][stage][metric].flatten() * 100
@@ -350,6 +356,7 @@ def plot_results(results: Dict, max_replications: int, savedir: Path) -> None:
             )
 
             # First we add total allocation bars
+            hatch = "//"
             positions = np.arange(len(allocations_before))
             ax.bar(
                 (
@@ -363,7 +370,6 @@ def plot_results(results: Dict, max_replications: int, savedir: Path) -> None:
                 edgecolor="k",
                 hatch=hatch,
             )
-
             ax.bar(
                 (
                     (positions - 1.5 * bar_width)[1:]
@@ -377,6 +383,7 @@ def plot_results(results: Dict, max_replications: int, savedir: Path) -> None:
                 hatch=hatch,
             )
 
+            hatch = ".."
             ax.bar(
                 (
                     (positions + 0.5 * bar_width)[1:]
@@ -396,6 +403,7 @@ def plot_results(results: Dict, max_replications: int, savedir: Path) -> None:
                 for i, replicate in enumerate(list(range(max_replications + 1))[::-1]):
                     heights = np.zeros(len(allocations_before))
                     heights[0] = allocations_after[replicate]
+
                     ax.bar(
                         (
                             (positions + 0.5 * bar_width)[0]
@@ -411,6 +419,22 @@ def plot_results(results: Dict, max_replications: int, savedir: Path) -> None:
                         alpha=0.7 if i > 0 else 1,
                         # lw=2,
                     )
+                    if i > 0:
+                        ax.bar(
+                            (
+                                (positions + 0.5 * bar_width)[0]
+                                if stage == "train"
+                                else (positions + 1.5 * bar_width)[0]
+                            ),
+                            heights[0],
+                            bar_width,
+                            color="None",
+                            edgecolor="red",
+                            bottom=bottom,
+                            alpha=1,
+                            lw=1.5,
+                            zorder=10,
+                        )
                     bottom += heights[0]
 
                 legend_elements = [
@@ -438,13 +462,16 @@ def plot_results(results: Dict, max_replications: int, savedir: Path) -> None:
                 )
 
         ax.set_xlabel("Support Agent")
-        ax.set_ylabel("Revenue Allocation (%)")
+        ax.set_ylabel("Revenue Allocation ($\%$)")
         ax.set_ylim(top=33)
         ax.set_xticks(np.arange(len(allocations_before)))
         ax.set_xticklabels(["$a_4$", "$a_5$", "$a_6$", "$a_7$", "$a_8$", "$a_9$"])
+        prettify(ax=ax)
 
         fig.tight_layout()
-        save_figure(fig, savedir, f"allocations_{policy.lower()}")
+        save_figure(
+            fig, savedir, f"allocations_{policy.lower()}".replace("-", "_").lower()
+        )
 
 
 def plot_policy_comparison(
@@ -453,10 +480,16 @@ def plot_policy_comparison(
     stage = "train"
     metric = "allocations"
 
-    fig, ax = plt.subplots(figsize=(7, 4), dpi=300)
+    # fig, ax = plt.subplots(figsize=(6, 3), dpi=300)
+    fig, ax = plt.subplots(figsize=(6.5, 3), dpi=300)
+
+    labels = ["Interventional", "Observational", "Banzahf Value", "Robust-Shapley"]
 
     policy_allications = {}
-    for policy in policies:
+    markers = ["*", "s", "o", "^"]
+
+    colors = ["red", "blue", "limegreen", "gold"]
+    for i, policy in enumerate(policies):
         all_allocations = [results[policy][0][stage][metric].flatten() * 100]
 
         for num_replications in range(1, max_replications + 1):
@@ -468,11 +501,28 @@ def plot_policy_comparison(
 
         policy_allications[policy] = np.row_stack(all_allocations)[:, 0]
 
-        ax.plot(policy_allications[policy], label=policy)
-        ax.set_ylabel("Revenue Allocation (%)")
-        ax.set_xlabel("# Replications")
+        ax.plot(
+            policy_allications[policy],
+            marker=markers[i],
+            # label=policy,
+            label=labels[i],
+            markerfacecolor="None",
+            color=colors[i],
+            markersize=7,
+        )
+        ax.set_ylabel("Revenue Allocation ($\%$)")
+        ax.set_xlabel("Number of Replications")
 
-    ax.legend()
+    prettify(ax=ax, legend_loc="upper left", legend=False)
+    leg = ax.legend(
+        facecolor="#eeeeee",
+        edgecolor="#ffffff",
+        framealpha=0.8,
+        loc="upper left",
+        labelspacing=0.25,
+    )
+    leg.get_frame().set_linewidth(0)
+    # ax.get_frame().set_linewidth(0)
     fig.tight_layout()
     save_figure(fig, savedir, f"policy_comparison")
 
@@ -480,6 +530,8 @@ def plot_policy_comparison(
 if __name__ == "__main__":
     logger = create_logger(__name__)
     logger.info("Running south carolina analysis")
+
+    use_tex()
 
     savedir = Path(__file__).parent / "docs/sim12-south-carolina"
     os.makedirs(savedir, exist_ok=True)
@@ -494,83 +546,83 @@ if __name__ == "__main__":
     plot_map(savedir / "sc_shapefile", raw_data, locations, savedir)
     plot_acf(locations["agent"], savedir)
 
-    test_frac = 0.1
-    train_payment = 2
-    test_payment = 2
-    num_samples = None
-    central_agent = "a1"
-    regularization = 1e-32
-    max_replications = 3  # 5  # 6
-    agents = ["a1", "a4", "a5", "a6", "a7", "a8", "a9"]
-    experiments = {
-        "Shapley-Int": {
-            "policy": NllShapleyPolicy,
-            "observational": False,
-        },
-        "Shapley-Obs": {
-            "policy": NllShapleyPolicy,
-            "observational": True,
-        },
-        "Banzhaf-Obs": {
-            "policy": NllBanzhafPolicy,
-            "observational": True,
-        },
-        "Shapley-Obs-Penalized": {
-            "policy": NllPenalizedShapleyPolicy,
-            "observational": True,
-        },
-        # "Shapley-Obs-Weighted": {
-        #     "policy": NllWeightedShapleyPolicy,
-        #     "observational": True,
-        # },
-    }
+    # test_frac = 0.1
+    # train_payment = 2
+    # test_payment = 2
+    # num_samples = None
+    # central_agent = "a1"
+    # regularization = 1e-32
+    # max_replications = 6  # 5  # 6
+    # agents = ["a1", "a4", "a5", "a6", "a7", "a8", "a9"]
+    # experiments = {
+    #     "Shapley-Int": {
+    #         "policy": NllShapleyPolicy,
+    #         "observational": False,
+    #     },
+    #     "Shapley-Obs": {
+    #         "policy": NllShapleyPolicy,
+    #         "observational": True,
+    #     },
+    #     "Banzhaf-Obs": {
+    #         "policy": NllBanzhafPolicy,
+    #         "observational": True,
+    #     },
+    #     "Shapley-Obs-Penalized": {
+    #         "policy": NllPenalizedShapleyPolicy,
+    #         "observational": True,
+    #     },
+    #     # "Shapley-Obs-Weighted": {
+    #     #     "policy": NllWeightedShapleyPolicy,
+    #     #     "observational": True,
+    #     # },
+    # }
 
-    cache_location = savedir / "cache"
-    os.makedirs(cache_location, exist_ok=True)
+    # cache_location = savedir / "cache"
+    # os.makedirs(cache_location, exist_ok=True)
 
-    @cache(cache_location)
-    def _run_experiments():
-        results = defaultdict(dict)
+    # @cache(cache_location)
+    # def _run_experiments():
+    #     results = defaultdict(dict)
 
-        def _run_experiment(experiment):
-            policy = experiment["policy"]
-            observational = experiment["observational"]
-            experiment_results = dict()
-            for num_replications in tqdm(range(0, max_replications + 1)):
-                raw_data = parse_raw_data(fname)
-                market_data = build_market_data(
-                    raw_data,
-                    test_frac,
-                    central_agent=central_agent,
-                    agents=agents,
-                    num_replications=num_replications,
-                    num_samples=num_samples,
-                )
+    #     def _run_experiment(experiment):
+    #         policy = experiment["policy"]
+    #         observational = experiment["observational"]
+    #         experiment_results = dict()
+    #         for num_replications in tqdm(range(0, max_replications + 1)):
+    #             raw_data = parse_raw_data(fname)
+    #             market_data = build_market_data(
+    #                 raw_data,
+    #                 test_frac,
+    #                 central_agent=central_agent,
+    #                 agents=agents,
+    #                 num_replications=num_replications,
+    #                 num_samples=num_samples,
+    #             )
 
-                task = BayesianLinearRegression(
-                    regularization=regularization,
-                    noise_variance=noise_variance_mle(market_data),
-                )
-                market = BatchMarket(
-                    market_data,
-                    regression_task=task,
-                    observational=observational,
-                    train_payment=train_payment,
-                    test_payment=test_payment,
-                )
+    #             task = BayesianLinearRegression(
+    #                 regularization=regularization,
+    #                 noise_variance=noise_variance_mle(market_data),
+    #             )
+    #             market = BatchMarket(
+    #                 market_data,
+    #                 regression_task=task,
+    #                 observational=observational,
+    #                 train_payment=train_payment,
+    #                 test_payment=test_payment,
+    #             )
 
-                experiment_results[num_replications] = market.run(policy)
-            return experiment_results
+    #             experiment_results[num_replications] = market.run(policy)
+    #         return experiment_results
 
-        results = Parallel(n_jobs=-1)(
-            delayed(_run_experiment)(experiment) for experiment in experiments.values()
-        )
+    #     results = Parallel(n_jobs=-1)(
+    #         delayed(_run_experiment)(experiment) for experiment in experiments.values()
+    #     )
 
-        return {name: results[i] for i, name in enumerate(experiments.keys())}
+    #     return {name: results[i] for i, name in enumerate(experiments.keys())}
 
-    results = _run_experiments()
+    # results = _run_experiments()
 
-    plot_results(results, max_replications=3, savedir=savedir)
+    # plot_results(results, max_replications=4, savedir=savedir)
     # plot_policy_comparison(
     #     results,
     #     experiments.keys(),
