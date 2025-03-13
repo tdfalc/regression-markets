@@ -41,7 +41,10 @@ class Market:
 
     def _precalculate_posteriors(self, X: np.ndarray, y: np.ndarray):
         num_features = X.shape[1]
-        for indices in chain_combinations(np.arange(num_features), 1, num_features):
+
+        for indices in chain_combinations(
+            np.arange(num_features), 1, num_features
+        ):
             self.regression_task.update_posterior(X, y, indices)
 
 
@@ -133,7 +136,9 @@ class OnlineMarket(Market):
 
         indices = range(self.num_runs)
         iterator = (
-            tqdm(indices, desc="Running market", unit="item") if verbose else indices
+            tqdm(indices, desc="Running market", unit="item")
+            if verbose
+            else indices
         )
 
         for i in iterator:

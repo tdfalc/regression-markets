@@ -9,7 +9,9 @@ from scipy.stats._multivariate import multivariate_normal_frozen as mvn_frozen
 class Task:
     def __init__(self, noise_variance: float = None):
         self.noise_variance = noise_variance
-        self._calculate_noise_variance = True if self.noise_variance is None else False
+        self._calculate_noise_variance = (
+            True if self.noise_variance is None else False
+        )
         self._posteriors = {}
         self._noise_variances = {}
 
@@ -36,9 +38,13 @@ class Task:
             X, posterior, noise_variance
         )
         predictive_sdev = predictive_variance**0.5
-        return -stats.norm.logpdf(y, loc=predictive_mean, scale=predictive_sdev).mean()
+        return -stats.norm.logpdf(
+            y, loc=predictive_mean, scale=predictive_sdev
+        ).mean()
 
-    def _predictive_mean(self, X: np.ndarray, posterior: mvn_frozen) -> np.ndarray:
+    def _predictive_mean(
+        self, X: np.ndarray, posterior: mvn_frozen
+    ) -> np.ndarray:
         return X.dot(posterior.mean).reshape(-1, 1)
 
     def _predictive_variance(
@@ -53,7 +59,9 @@ class Task:
         self, X: np.ndarray, posterior: mvn_frozen, noise_variance: float
     ) -> Tuple:
         predictive_mean = self._predictive_mean(X, posterior)
-        predictive_variance = self._predictive_variance(X, posterior, noise_variance)
+        predictive_variance = self._predictive_variance(
+            X, posterior, noise_variance
+        )
         return predictive_mean, predictive_variance
 
 
@@ -84,7 +92,9 @@ class MaximumLikelihoodLinearRegression(Task):
         posterior_mean = (np.linalg.inv(X.T @ X) @ X.T @ y).flatten()
 
         posterior_covariance = np.diag(np.full(X.shape[1], math.ulp(1.0)))
-        posterior = stats.multivariate_normal(posterior_mean, posterior_covariance)
+        posterior = stats.multivariate_normal(
+            posterior_mean, posterior_covariance
+        )
         self.set_posterior(indices, posterior)
 
     def update_posterior(self, X: np.ndarray, y: np.ndarray, indices: Sequence):
@@ -131,12 +141,16 @@ class BayesianLinearRegression(Task):
         prior = self._build_prior(indices)
         prior_mean, prior_covariance = prior.mean.reshape(-1, 1), prior.cov
         inv_prior_covariance = np.linalg.inv(prior_covariance)
-        inv_posterior_covariance = inv_prior_covariance + noise_precision * X.T.dot(X)
+        inv_posterior_covariance = (
+            inv_prior_covariance + noise_precision * X.T.dot(X)
+        )
         posterior_covariance = np.linalg.inv(inv_posterior_covariance)
         posterior_mean = posterior_covariance.dot(
             inv_prior_covariance.dot(prior_mean) + noise_precision * X.T.dot(y)
         ).flatten()
-        posterior = stats.multivariate_normal(posterior_mean, posterior_covariance)
+        posterior = stats.multivariate_normal(
+            posterior_mean, posterior_covariance
+        )
         self.set_posterior(indices, posterior)
 
     def update_posterior(self, X: np.ndarray, y: np.ndarray, indices: Sequence):
@@ -151,7 +165,9 @@ class OnlineBayesianLinearRegression(BayesianLinearRegression):
         forgetting: float,
         noise_variance: float = None,
     ):
-        super().__init__(regularization=regularization, noise_variance=noise_variance)
+        super().__init__(
+            regularization=regularization, noise_variance=noise_variance
+        )
         self.forgetting = forgetting
 
     def _flatten_prior(self, indices):
@@ -165,7 +181,9 @@ class OnlineBayesianLinearRegression(BayesianLinearRegression):
         )
         flattened_prior_mean = np.linalg.inv(flattened_prior_covariance_inv) @ (
             self.forgetting * posterior_covariance_inv @ posterior.mean
-            + (1 - self.forgetting) * flattened_prior_covariance_inv @ flat_prior.mean
+            + (1 - self.forgetting)
+            * flattened_prior_covariance_inv
+            @ flat_prior.mean
         )
         return (
             flattened_prior_mean.reshape(-1, 1),
@@ -189,5 +207,7 @@ class OnlineBayesianLinearRegression(BayesianLinearRegression):
             flattened_prior_covariance_inv.dot(flattened_prior_mean)
             + noise_precision * X.T.dot(y)
         )
-        posterior = stats.multivariate_normal(posterior_mean.flatten(), posterior_cov)
+        posterior = stats.multivariate_normal(
+            posterior_mean.flatten(), posterior_cov
+        )
         self.set_posterior(indices, posterior)

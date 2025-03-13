@@ -25,6 +25,9 @@ from regression_markets.market.data import MarketData, BatchData
 from regression_markets.market.mechanism import OnlineMarket
 from analytics.helpers import save_figure, get_discrete_colors, set_style
 from regression_markets.market.policy import NllShapleyPolicy
+from tfds.plotting import use_tex, prettify
+
+use_tex()
 
 
 def process_raw_data(
@@ -61,7 +64,9 @@ def process_raw_data(
     # Add lags for all columns in the DataFrame
     for column in df.columns:
         max_lags = (
-            max_central_agent_lags if column == target_code else max_support_agent_lags
+            max_central_agent_lags
+            if column == target_code
+            else max_support_agent_lags
         )
         df = add_lags(
             df, column, max_lags=max_lags, remove_original=column != target_code
@@ -110,7 +115,9 @@ def plot_irradiance(
         ax1.set_xlabel("Date")
 
         hourly = target_signal.groupby(target_signal.index.hour).mean()
-        ax2.plot(hourly.index, hourly, label=target_code, color=color_map[i], lw=1)
+        ax2.plot(
+            hourly.index, hourly, label=target_code, color=color_map[i], lw=1
+        )
         ax2.set_ylabel("Irradiance $(\mathrm{kW}/\mathrm{m}^2)$")
         ax2.set_xlabel("Hour")
 
@@ -179,6 +186,7 @@ def plot_results(
                 )
             if target_code == "TR":
                 ax.legend(custom_lines, target_codes, ncol=2, framealpha=0)
+            prettify(ax=ax, legend=False)
         save_figure(fig, savedir, "_".join(two_target_codes))
 
 
@@ -243,7 +251,9 @@ def main():
 
         market_data = MarketData(
             dummy_feature=np.ones((len(central_agent_features), 1)),
-            central_agent_features=central_agent_features.to_numpy().reshape(-1, 1),
+            central_agent_features=central_agent_features.to_numpy().reshape(
+                -1, 1
+            ),
             support_agent_features=support_agent_features.to_numpy(),
             target_signal=target_signal.to_numpy().reshape(-1, 1),
             polynomial_degree=polynomial_degree,

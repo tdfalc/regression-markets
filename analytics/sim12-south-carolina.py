@@ -15,14 +15,15 @@ from shapely.geometry import Point
 from tqdm import tqdm
 from tfds.plotting import use_tex, prettify
 
-from regression_markets.market.data import BatchData
+from regression_markets.market.data import BatchData, MarketData
 from regression_markets.market.task import (
     BayesianLinearRegression,
     MaximumLikelihoodLinearRegression,
     Task,
+    OnlineBayesianLinearRegression,
 )
 from regression_markets.market.policy import NllShapleyPolicy, SemivaluePolicy
-from regression_markets.market.mechanism import BatchMarket
+from regression_markets.market.mechanism import BatchMarket, OnlineMarket
 from regression_markets.common.log import create_logger
 from analytics.helpers import save_figure, get_discrete_colors
 from regression_markets.common.utils import cache
@@ -132,7 +133,9 @@ class NllPenalizedShapleyPolicy(NllShapleyPolicy):
         )
         self.alpha = alpha
 
-    def _weighted_avg_contributions(self, X: np.ndarray, y: np.ndarray) -> np.ndarray:
+    def _weighted_avg_contributions(
+        self, X: np.ndarray, y: np.ndarray
+    ) -> np.ndarray:
         contributions = super()._weighted_avg_contributions(X, y)
 
         def _calculate_penalties(X: np.ndarray):
@@ -164,7 +167,7 @@ def parse_raw_data(fname: Path) -> pd.DataFrame:
 def build_market_data(
     df, test_frac, central_agent, num_replications, agents, num_samples=None
 ) -> BatchData:
-    df = df.resample("1H").mean()
+    df = df.resample("1h").mean()
     df = df.loc[:, agents].copy()
 
     for agent in agents:
@@ -192,7 +195,9 @@ def build_market_data(
             [
                 (
                     support_agent_features[:, 0]
-                    + np.random.normal(0, 0.12, size=len(support_agent_features))
+                    + np.random.normal(
+                        0, 0.12, size=len(support_agent_features)
+                    )
                 ).reshape(-1, 1)
                 for _ in range(num_replications)
             ]
@@ -206,6 +211,57 @@ def build_market_data(
         target_signal=target_signal,
         polynomial_degree=1,
         test_frac=test_frac,
+    )
+
+
+def build_market_data_online(
+    df, test_frac, central_agent, num_replications, agents, num_samples=None
+) -> BatchData:
+    df = df.resample("1h").mean()
+    df = df.loc[:, agents].copy()
+
+    df = df.iloc[-5000:]
+
+    for agent in agents:
+        df[f"{agent}_lag1"] = df[f"{agent}"].shift(1)
+        if agent != central_agent:
+            df = df.drop(f"{agent}", axis=1)
+
+    # df /= df.max(axis=0)
+    df = df.dropna()
+
+    if num_samples is not None:
+        idx = np.random.randint(0, len(df) - num_samples - 1)
+        df = df.iloc[idx : idx + num_samples]
+
+    target_signal = df.pop(f"{central_agent}").to_numpy().reshape(-1, 1)
+    central_agent_cols = [f"{central_agent}_lag1"]
+    central_agent_features = df.loc[:, central_agent_cols]
+    support_agent_features = df.loc[
+        :, [c for c in df.columns if c not in central_agent_cols]
+    ]
+    support_agent_features = support_agent_features.to_numpy()
+
+    if num_replications > 0:
+        support_agent_features = np.hstack(
+            [
+                (
+                    support_agent_features[:, 0]
+                    + np.random.normal(
+                        0, 0.12, size=len(support_agent_features)
+                    )
+                ).reshape(-1, 1)
+                for _ in range(num_replications)
+            ]
+            + [support_agent_features]
+        )
+
+    return MarketData(
+        dummy_feature=np.ones((len(target_signal), 1)),
+        central_agent_features=central_agent_features.to_numpy().reshape(-1, 1),
+        support_agent_features=support_agent_features,
+        target_signal=target_signal.reshape(-1, 1),
+        polynomial_degree=1,
     )
 
 
@@ -231,8 +287,11 @@ def plot_map(
         Point(lon, lat)
         for lon, lat in zip(locations["longitude"], locations["latitude"])
     ]
-    gdf_points = gpd.GeoDataFrame(locations, geometry=geometry, crs=gdf_shapefile.crs)
-    gdf_points["correlation"] = raw_data.corr()["a1"].values
+    gdf_points = gpd.GeoDataFrame(
+        locations, geometry=geometry, crs=gdf_shapefile.crs
+    )
+    rd = raw_data.copy()
+    gdf_points["correlation"] = rd.corr()["a1"].values
     gdf_points["colors"] = [
         "magenta",
         "blue",
@@ -323,7 +382,9 @@ def plot_acf(agents: Sequence, savedir: Path) -> None:
     save_figure(fig, savedir, "acf")
 
 
-def _add_replicate_revenue(values: np.ndarray, max_replications: int) -> np.ndarray:
+def _add_replicate_revenue(
+    values: np.ndarray, max_replications: int
+) -> np.ndarray:
     values = values.copy()
     total = values[: max_replications + 1].sum()
     values = values[max_replications:]
@@ -340,11 +401,13 @@ def plot_results(results: Dict, max_replications: int, savedir: Path) -> None:
 
     for policy in ("Shapley-Obs", "Shapley-Int"):
 
-        # fig, ax = plt.subplots(figsize=(4, 3), dpi=300)
-        fig, ax = plt.subplots(figsize=(6.5, 3), dpi=300)
+        fig, ax = plt.subplots(figsize=(4, 3), dpi=300)
+        # fig, ax = plt.subplots(figsize=(6.5, 3), dpi=300)
 
         for stage, color in zip(("train", "test"), colors):
-            allocations_before = results[policy][0][stage][metric].flatten() * 100
+            allocations_before = (
+                results[policy][0][stage][metric].flatten() * 100
+            )
             allocations_after = (
                 results[policy][max_replications][stage][metric].flatten() * 100
             )
@@ -400,7 +463,9 @@ def plot_results(results: Dict, max_replications: int, savedir: Path) -> None:
             # Now we stack bars for replicates
             if policy == "Shapley-Obs":
                 bottom = 0
-                for i, replicate in enumerate(list(range(max_replications + 1))[::-1]):
+                for i, replicate in enumerate(
+                    list(range(max_replications + 1))[::-1]
+                ):
                     heights = np.zeros(len(allocations_before))
                     heights[0] = allocations_after[replicate]
 
@@ -438,14 +503,16 @@ def plot_results(results: Dict, max_replications: int, savedir: Path) -> None:
                     bottom += heights[0]
 
                 legend_elements = [
-                    Patch(facecolor=colors[0], edgecolor="k", label="w/. Honest"),
+                    Patch(facecolor=colors[0], edgecolor="k", label="Train"),
                     Patch(
                         facecolor=colors[1],
                         edgecolor="k",
-                        label="w/. Malicious",
+                        label="Test",
                     ),
                 ]
-                ax.legend(handles=legend_elements, fancybox=False, edgecolor="white")
+                ax.legend(
+                    handles=legend_elements, fancybox=False, edgecolor="white"
+                )
 
             else:
                 ax.bar(
@@ -465,12 +532,16 @@ def plot_results(results: Dict, max_replications: int, savedir: Path) -> None:
         ax.set_ylabel("Revenue Allocation ($\%$)")
         ax.set_ylim(top=33)
         ax.set_xticks(np.arange(len(allocations_before)))
-        ax.set_xticklabels(["$a_4$", "$a_5$", "$a_6$", "$a_7$", "$a_8$", "$a_9$"])
+        ax.set_xticklabels(
+            ["$a_4$", "$a_5$", "$a_6$", "$a_7$", "$a_8$", "$a_9$"]
+        )
         prettify(ax=ax)
 
         fig.tight_layout()
         save_figure(
-            fig, savedir, f"allocations_{policy.lower()}".replace("-", "_").lower()
+            fig,
+            savedir,
+            f"allocations_{policy.lower()}".replace("-", "_").lower(),
         )
 
 
@@ -483,7 +554,12 @@ def plot_policy_comparison(
     # fig, ax = plt.subplots(figsize=(6, 3), dpi=300)
     fig, ax = plt.subplots(figsize=(6.5, 3), dpi=300)
 
-    labels = ["Interventional", "Observational", "Banzahf Value", "Robust-Shapley"]
+    labels = [
+        "Interventional",
+        "Observational",
+        "Banzahf Value",
+        "Robust-Shapley",
+    ]
 
     policy_allications = {}
     markers = ["*", "s", "o", "^"]
@@ -496,7 +572,9 @@ def plot_policy_comparison(
             allocations = (
                 results[policy][num_replications][stage][metric].flatten() * 100
             )
-            allocations_agg = _add_replicate_revenue(allocations, num_replications)
+            allocations_agg = _add_replicate_revenue(
+                allocations, num_replications
+            )
             all_allocations.append(allocations_agg)
 
         policy_allications[policy] = np.row_stack(all_allocations)[:, 0]
@@ -546,13 +624,98 @@ if __name__ == "__main__":
     plot_map(savedir / "sc_shapefile", raw_data, locations, savedir)
     plot_acf(locations["agent"], savedir)
 
+    test_frac = 0.1
+    train_payment = 2
+    test_payment = 2
+    num_samples = None
+    central_agent = "a1"
+    regularization = 1e-32
+    max_replications = 4  # 5  # 6
+    agents = ["a1", "a4", "a5", "a6", "a7", "a8", "a9"]
+    experiments = {
+        "Shapley-Int": {
+            "policy": NllShapleyPolicy,
+            "observational": False,
+        },
+        "Shapley-Obs": {
+            "policy": NllShapleyPolicy,
+            "observational": True,
+        },
+        "Banzhaf-Obs": {
+            "policy": NllBanzhafPolicy,
+            "observational": True,
+        },
+        "Shapley-Obs-Penalized": {
+            "policy": NllPenalizedShapleyPolicy,
+            "observational": True,
+        },
+        # "Shapley-Obs-Weighted": {
+        #     "policy": NllWeightedShapleyPolicy,
+        #     "observational": True,
+        # },
+    }
+
+    cache_location = savedir / "cache"
+    os.makedirs(cache_location, exist_ok=True)
+
+    @cache(cache_location)
+    def _run_experiments():
+        results = defaultdict(dict)
+
+        def _run_experiment(experiment):
+            policy = experiment["policy"]
+            observational = experiment["observational"]
+            experiment_results = dict()
+            for num_replications in tqdm(range(0, max_replications + 1)):
+                raw_data = parse_raw_data(fname)
+                market_data = build_market_data(
+                    raw_data,
+                    test_frac,
+                    central_agent=central_agent,
+                    agents=agents,
+                    num_replications=num_replications,
+                    num_samples=num_samples,
+                )
+
+                task = BayesianLinearRegression(
+                    regularization=regularization,
+                    noise_variance=noise_variance_mle(market_data),
+                )
+                market = BatchMarket(
+                    market_data,
+                    regression_task=task,
+                    observational=observational,
+                    train_payment=train_payment,
+                    test_payment=test_payment,
+                )
+
+                experiment_results[num_replications] = market.run(policy)
+            return experiment_results
+
+        results = Parallel(n_jobs=-1)(
+            delayed(_run_experiment)(experiment)
+            for experiment in experiments.values()
+        )
+
+        return {name: results[i] for i, name in enumerate(experiments.keys())}
+
+    results = _run_experiments()
+
+    plot_results(results, max_replications=4, savedir=savedir)
+    plot_policy_comparison(
+        results,
+        experiments.keys(),
+        max_replications,
+        savedir,
+    )
+
     # test_frac = 0.1
     # train_payment = 2
     # test_payment = 2
     # num_samples = None
     # central_agent = "a1"
     # regularization = 1e-32
-    # max_replications = 6  # 5  # 6
+    # max_replications = 0  # 5  # 6
     # agents = ["a1", "a4", "a5", "a6", "a7", "a8", "a9"]
     # experiments = {
     #     "Shapley-Int": {
@@ -563,14 +726,14 @@ if __name__ == "__main__":
     #         "policy": NllShapleyPolicy,
     #         "observational": True,
     #     },
-    #     "Banzhaf-Obs": {
-    #         "policy": NllBanzhafPolicy,
-    #         "observational": True,
-    #     },
-    #     "Shapley-Obs-Penalized": {
-    #         "policy": NllPenalizedShapleyPolicy,
-    #         "observational": True,
-    #     },
+    #     # "Banzhaf-Obs": {
+    #     #     "policy": NllBanzhafPolicy,
+    #     #     "observational": True,
+    #     # },
+    #     # "Shapley-Obs-Penalized": {
+    #     #     "policy": NllPenalizedShapleyPolicy,
+    #     #     "observational": True,
+    #     # },
     #     # "Shapley-Obs-Weighted": {
     #     #     "policy": NllWeightedShapleyPolicy,
     #     #     "observational": True,
@@ -590,7 +753,7 @@ if __name__ == "__main__":
     #         experiment_results = dict()
     #         for num_replications in tqdm(range(0, max_replications + 1)):
     #             raw_data = parse_raw_data(fname)
-    #             market_data = build_market_data(
+    #             market_data = build_market_data_online(
     #                 raw_data,
     #                 test_frac,
     #                 central_agent=central_agent,
@@ -599,33 +762,52 @@ if __name__ == "__main__":
     #                 num_samples=num_samples,
     #             )
 
-    #             task = BayesianLinearRegression(
-    #                 regularization=regularization,
+    #             forgetting = 0.9998
+
+    #             task = OnlineBayesianLinearRegression(
+    #                 regularization=1e-5,
+    #                 forgetting=forgetting,
     #                 noise_variance=noise_variance_mle(market_data),
     #             )
-    #             market = BatchMarket(
+
+    #             market = OnlineMarket(
     #                 market_data,
     #                 regression_task=task,
     #                 observational=observational,
-    #                 train_payment=train_payment,
-    #                 test_payment=test_payment,
+    #                 train_payment=0.5,
+    #                 test_payment=0.5,
+    #                 burn_in=500,
+    #                 likelihood_flattening=forgetting,
     #             )
 
-    #             experiment_results[num_replications] = market.run(policy)
+    #             experiment_results[num_replications] = market.run(
+    #                 policy, verbose=True
+    #             )
     #         return experiment_results
 
     #     results = Parallel(n_jobs=-1)(
-    #         delayed(_run_experiment)(experiment) for experiment in experiments.values()
+    #         delayed(_run_experiment)(experiment)
+    #         for experiment in experiments.values()
     #     )
 
     #     return {name: results[i] for i, name in enumerate(experiments.keys())}
 
     # results = _run_experiments()
 
-    # plot_results(results, max_replications=4, savedir=savedir)
-    # plot_policy_comparison(
-    #     results,
-    #     experiments.keys(),
-    #     max_replications,
-    #     savedir,
-    # )
+    # fig, ax = plt.subplots(dpi=300)
+    # payments = results["Shapley-Obs"][0]["test"]["payments"]
+    # for i in range(6):
+    #     s = np.arange(len(payments[:, i])) + 1
+    #     ax.plot(payments[:, i].cumsum() / s, label=i)
+    # ax.legend()
+    # fig.savefig(savedir / "Test.pdf")
+
+    # print(results["Shapley-Obs"][0]["test"]["payments"].shape)
+
+    # # plot_results(results, max_replications=4, savedir=savedir)
+    # # plot_policy_comparison(
+    # #     results,
+    # #     experiments.keys(),
+    # #     max_replications,
+    # #     savedir,
+    # # )

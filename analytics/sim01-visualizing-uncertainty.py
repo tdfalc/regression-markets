@@ -126,7 +126,9 @@ def main() -> None:
             coefficients, noise_variance, num_samples, **experiment_config
         )
 
-        psuedo_inverse = np.linalg.inv(X.transpose(0, 2, 1) @ X) @ X.transpose(0, 2, 1)
+        psuedo_inverse = np.linalg.inv(X.transpose(0, 2, 1) @ X) @ X.transpose(
+            0, 2, 1
+        )
         mle_estimates = (psuedo_inverse @ y).reshape(-1, 2)
         mean = np.mean(mle_estimates, axis=0)
         covariance = np.cov(mle_estimates.T)

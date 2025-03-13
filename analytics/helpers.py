@@ -12,13 +12,14 @@ from regression_markets.market.data import BatchData
 
 
 def set_style() -> None:
-    plt.rc("text", usetex=True)
-    plt.rc("font", family="serif")
-    plt.rc("font", size=12)
-    plt.rc("axes", labelsize=12)
-    plt.rc("xtick", labelsize=12)
-    plt.rc("ytick", labelsize=12)
-    plt.rc("legend", fontsize=12)
+    pass
+    # plt.rc("text", usetex=True)
+    # plt.rc("font", family="serif")
+    # plt.rc("font", size=12)
+    # plt.rc("axes", labelsize=12)
+    # plt.rc("xtick", labelsize=12)
+    # plt.rc("ytick", labelsize=12)
+    # plt.rc("legend", fontsize=12)
 
 
 class MarketDesigns(str, Enum):
@@ -33,13 +34,12 @@ def save_figure(
 ) -> None:
     if tight:
         fig.tight_layout()
-    for extension in (".pdf", ".png"):
-        fig.savefig(
-            savedir / (filename + extension),
-            dpi=dpi,
-            transparent=True,
-            bbox_inches="tight",
-        )
+    fig.savefig(
+        savedir / (filename + ".pdf"),
+        dpi=dpi,
+        transparent=True,
+        bbox_inches="tight",
+    )
 
 
 def add_dummy(X: np.ndarray[float]) -> np.ndarray[float]:
@@ -84,7 +84,9 @@ def build_data(
     return _build_data
 
 
-def conditional_value_at_risk(x: np.ndarray, alpha: float, axis: int = 0) -> np.ndarray:
+def conditional_value_at_risk(
+    x: np.ndarray, alpha: float, axis: int = 0
+) -> np.ndarray:
     return -np.mean(
         np.partition(x, int(x.shape[axis] * alpha), axis=axis)[
             : int(x.shape[axis] * alpha)
@@ -109,9 +111,9 @@ import itertools
 from matplotlib import pyplot as plt
 
 
-plt.rcParams["font.size"] = 12
-plt.rcParams["mathtext.fontset"] = "cm"  # Use CM for math font.
-plt.rcParams["figure.autolayout"] = True  # Use tight layouts.
+# plt.rcParams["font.size"] = 12
+# plt.rcParams["mathtext.fontset"] = "cm"  # Use CM for math font.
+# plt.rcParams["figure.autolayout"] = True  # Use tight layouts.
 
 
 PALETTE_1 = ["magenta", "blue", "darkorange", "limegreen", "black"]

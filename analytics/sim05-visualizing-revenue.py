@@ -32,6 +32,18 @@ from regression_markets.market.policy import (
     NllShapleyPolicy,
 )
 from regression_markets.market.mechanism import BatchMarket
+from tfds.plotting import use_tex, prettify
+
+plt.rcParams.update(
+    {
+        #'font.size': 8,
+        #'text.usetex': True,
+        "text.latex.preamble": r"\usepackage{amsfonts, amsmath}"
+    }
+)
+
+
+use_tex()
 
 
 def simulate_batch(
@@ -47,8 +59,12 @@ def simulate_batch(
         task.update_posterior(X_train, y_train, indices)
         posterior = task.get_posterior(indices)
         noise_variance = task.get_noise_variance(indices)
-        train_loss = task.calculate_loss(X_train, y_train, posterior, noise_variance)
-        test_loss = task.calculate_loss(X_test, y_test, posterior, noise_variance)
+        train_loss = task.calculate_loss(
+            X_train, y_train, posterior, noise_variance
+        )
+        test_loss = task.calculate_loss(
+            X_test, y_test, posterior, noise_variance
+        )
         return train_loss, test_loss
 
     results = {}
@@ -106,9 +122,36 @@ def plot_results(
     upper_quantile: float,
     savedir: Path,
 ) -> None:
+    c = ["magenta", "blue", "darkorange", "limegreen"]
+    c = [
+        "#E24A33",
+        "#348ABD",
+        # "#988ED5",
+        # "#777777",
+        "#FBC15E",
+        "#8EBA42",
+    ]
+    c = [
+        "C0",
+        "C1",  # red
+        "C2",  # blue
+        "C3",  # orange
+        # "C4",  # green
+        # "#9467bd",  # purple
+        # "#8c564b",  # brown
+    ]
+    c = [
+        # "#000000",  # Black
+        "#F5793A",  # Orange
+        "#4BA6FB",  # Modified blue (original was #85C0F9)
+        "#A95AA1",  # Pink
+        "#689948",  # Green: not optimal for colour-blind people
+    ]
 
-    colors = cycle(["magenta", "blue", "darkorange", "limegreen"])
+    # c = ["r", "b", "o", "g"]
+    colors = cycle(c)
     fig, axs = plt.subplots(4, 1, figsize=(6.2, 7), sharey=True, sharex=True)
+    fig, axs = plt.subplots(4, 1, figsize=(6, 6), sharey=True, sharex=True)
 
     markers = cycle(["o", "d", ">", "s"])
 
@@ -165,19 +208,31 @@ def plot_results(
                 make_errorbar(ax)
 
     for j, ax in enumerate(axs.flatten()):
+        prettify(ax=ax, legend=False)
         if j == 0:
             ax.legend(
                 custom_lines,
-                [market_design.value for market_design in market_designs.keys()],
+                [
+                    market_design.value
+                    for market_design in market_designs.keys()
+                ],
                 framealpha=0,
                 ncol=2,
+                loc="upper right",
+                bbox_to_anchor=(1, 1.05),
             )
         ax.axvline(x=0, color="lightgray", lw=1)
         ax.axhline(y=0, color="lightgray", lw=1)
 
-        ax.set_ylabel("Exp. Value (EUR)")
+        # ax.set_ylabel("Exp. Value (EUR)")
+        ax.set_ylabel(r"$\mathbb{E}[\pi]$ (EUR)")
         if j == 3:
-            ax.set_xlabel("Exp. Shortfall (EUR)")
+            # ax.set_xlabel("Exp. Shortfall (EUR)")
+            ax.set_xlabel(r"$\mathbb{ES}[\pi]$ (EUR)")
+            ax.set_xlabel(r"$\operatorname{CVaR}[\pi]$ (EUR)")
+            ax.set_xlabel(
+                r"$\mathbb{E}[\pi \vert \pi \leq Q_{\alpha} (\pi)]$ (EUR)"
+            )
         ax.set_xscale("symlog", linthresh=1e-2)
         ax.set_yscale("symlog", linthresh=1e-1)
         ax.set_xlim([-0.005, 80])
@@ -256,8 +311,8 @@ def main() -> None:
 
     # Induced misspecifications
     misspecified_interpolant_function = lambda X: X**2 @ coefficients
-    misspecified_additive_noise_function = lambda sample_size: np.random.standard_t(
-        df=2, size=(sample_size, 1)
+    misspecified_additive_noise_function = (
+        lambda sample_size: np.random.standard_t(df=2, size=(sample_size, 1))
     )
     misspecified_heteroskedasticity_function = lambda X: X[:, -2:-1] ** 2
     misspecified_heteroskedasticity_function = lambda X: 2 * X[:, -1:]
@@ -310,7 +365,9 @@ def main() -> None:
         logger.info(f"Running experiment: {experiment_title}")
         cache_location = savedir / "cache" / experiment_title
         os.makedirs(cache_location, exist_ok=True)
-        with tqdm_joblib(tqdm(desc="Simulation progress", total=num_simulations)) as _:
+        with tqdm_joblib(
+            tqdm(desc="Simulation progress", total=num_simulations)
+        ) as _:
             experiment_results = cache(save_dir=cache_location)(
                 lambda: Parallel(n_jobs=-1)(
                     delayed(simulate_batch)(

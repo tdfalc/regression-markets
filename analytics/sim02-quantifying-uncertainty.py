@@ -16,6 +16,9 @@ from regression_markets.market.mechanism import BatchMarket
 from regression_markets.market.policy import NllShapleyPolicy
 from analytics.helpers import save_figure, add_dummy, set_style
 from regression_markets.common.log import create_logger
+from tfds.plotting import use_tex, prettify
+
+use_tex()
 
 
 def make_regression(
@@ -70,13 +73,17 @@ def plot_predictive_uncertainty(
 
     def bootstrap(x, num_samples=1000):
         # Generate an array of shape (num_samples, len(x)) with bootstrap samples
-        bootstrap_samples = np.random.choice(x, (num_samples, len(x)), replace=True)
+        bootstrap_samples = np.random.choice(
+            x, (num_samples, len(x)), replace=True
+        )
         # Calculate the mean of each bootstrap sample along the axis 1
         return np.mean(bootstrap_samples, axis=1)
 
     bootstraps = bootstrap(nll.flatten())
 
-    ax.hist(bootstraps, color=color, alpha=0.4, histtype="stepfilled", label=label)
+    ax.hist(
+        bootstraps, color=color, alpha=0.4, histtype="stepfilled", label=label
+    )
     ax.hist(bootstraps, color=color, histtype="step", label=label, lw=1.5)
     ax.set_xlabel("Negative Log Likelihood")
     ax.set_ylabel("Count")
@@ -86,7 +93,9 @@ def plot_predictive_uncertainty(
     return legend_element
 
 
-def plot_payments(ax: mpl.axes.SubplotBase, market_output: Dict, color: str) -> None:
+def plot_payments(
+    ax: mpl.axes.SubplotBase, market_output: Dict, color: str
+) -> None:
     payments = market_output["train"]["payments"] / 1
 
     ax.bar(
@@ -159,7 +168,9 @@ def main() -> None:
         y_pred_grand_coalition = task._predict(
             X_test, posterior_grand_coalition, noise_variance
         )
-        y_pred_buyer = task._predict(X_test[:, [0, 1]], posterior_buyer, noise_variance)
+        y_pred_buyer = task._predict(
+            X_test[:, [0, 1]], posterior_buyer, noise_variance
+        )
 
         axs[i, 1] = plt.subplot(len(experiments), 3, i * 3 + 2)
         if i > 0:
@@ -196,10 +207,13 @@ def main() -> None:
         market_data = BatchData(
             X_train[:, [0]], X_train[:, [1]], X_train[:, 2:], y_train
         )
-        market_output = BatchMarket(market_data, task, train_payment=train_payment).run(
-            NllShapleyPolicy
-        )
+        market_output = BatchMarket(
+            market_data, task, train_payment=train_payment
+        ).run(NllShapleyPolicy)
         plot_payments(axs[i, 2], market_output, color="k")
+
+    for ax in axs.flatten():
+        prettify(ax=ax, legend=False)
 
     fig.tight_layout()
     save_figure(fig, savedir, "bayesian_updates")
