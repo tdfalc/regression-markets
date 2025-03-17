@@ -125,11 +125,13 @@ def plot_irradiance(
         date_format = mdates.DateFormatter("%m/%y")
         ax1.xaxis.set_major_formatter(date_format)
         ax1.xaxis.set_major_locator(MaxNLocator(5))
+        prettify(ax=ax1, legend=False)
 
         date_format = mdates.DateFormatter("%m/%y")
         ax2.xaxis.set_major_locator(MaxNLocator(7))
         ax2.set_xlabel("Hour")
         ax2.legend(ncol=1, frameon=False)
+        prettify(ax=ax2, legend=False)
 
     save_figure(fig, savedir, "irradiance")
 
@@ -162,7 +164,7 @@ def plot_results(
                         output["train"]["contributions"][:, i] * 50
                         + output["test"]["contributions"][:, i] * 150,
                         sigma=1000,
-                    ),
+                    ).cumsum(),
                     color=color_map[color_idx],
                     lw=1,
                 )
@@ -172,7 +174,8 @@ def plot_results(
             ax.xaxis.set_major_formatter(date_format)
 
             ax.xaxis.set_major_locator(MaxNLocator(5))
-            ax.set_ylim([-5, 110])
+            # ax.set_ylim([-5, 110])
+            ax.set_ylim([-5, 1.25e6])
 
             custom_lines = []
             for code in target_codes:
@@ -212,7 +215,7 @@ def main():
     forgetting = 0.998
     results = defaultdict(dict)
 
-    colors = get_discrete_colors("viridis", 6)
+    colors = plt.get_cmap("viridis", 6).colors
     color_map = {i: colors[i] for i in range(6)}
 
     target_signals = []
