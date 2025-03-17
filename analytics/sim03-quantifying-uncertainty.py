@@ -10,6 +10,7 @@ from scipy.stats._multivariate import multivariate_normal_frozen as mvn_frozen
 from scipy import stats
 from matplotlib.patches import Patch
 from tfds.plotting import use_tex, prettify
+import matplotlib.colors as mcolors
 
 from regression_markets.market.task import BayesianLinearRegression
 from regression_markets.market.data import BatchData
@@ -46,7 +47,7 @@ def plot_posterior(
 
     ax.imshow(
         densities[::-1, :],
-        cmap=cm.rainbow,  # cm.jet
+        cmap="YlGnBu",  # cm.jet
         aspect="auto",
         extent=(-1, 1, -1, 1),
     )
@@ -82,10 +83,10 @@ def plot_predictive_uncertainty(
     bootstraps = bootstrap(nll.flatten())
 
     ax.hist(
-        bootstraps, color=color, alpha=0.4, histtype="stepfilled", label=label
+        bootstraps, color=color, alpha=0.25, histtype="stepfilled", label=label
     )
     ax.hist(bootstraps, color=color, histtype="step", label=label, lw=1.5)
-    ax.set_xlabel("Negative Log Likelihood")
+    ax.set_xlabel(r"$-\log p(y_t \vert x_t)$")
     ax.set_ylabel("Count")
     legend_element = Patch(
         facecolor=color + "44", edgecolor=color, label=label, linewidth=1.5
@@ -177,18 +178,19 @@ def main() -> None:
             axs[i - 1, 1].sharex(axs[i, 1])
             axs[i - 1, 1].sharey(axs[i, 1])
 
+        colors = plt.get_cmap("viridis", 5).colors
         element1 = plot_predictive_uncertainty(
             axs[i, 1],
             y_test,
             *y_pred_buyer,
-            color="#673AB7",
+            color=mcolors.to_hex(colors[1]),
             label="Without Market" if i == 0 else None,
         )
         element2 = plot_predictive_uncertainty(
             axs[i, 1],
             y_test,
             *y_pred_grand_coalition,
-            color="#FFB300",
+            color=mcolors.to_hex(colors[-2]),
             label="With Market" if i == 0 else None,
         )
         if i == 0:
