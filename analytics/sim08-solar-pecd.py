@@ -14,6 +14,7 @@ from matplotlib.ticker import MaxNLocator
 from scipy.ndimage import gaussian_filter
 import numpy as np
 import matplotlib.pyplot as plt
+from tfds.plotting import use_tex, prettify
 
 from regression_markets.common.log import create_logger
 from regression_markets.common.utils import cache
@@ -23,11 +24,11 @@ from regression_markets.market.task import (
 )
 from regression_markets.market.data import MarketData, BatchData
 from regression_markets.market.mechanism import OnlineMarket
-from analytics.helpers import save_figure, get_discrete_colors, set_style
+from analytics.helpers import save_figure, set_style
 from regression_markets.market.policy import NllShapleyPolicy
-from tfds.plotting import use_tex, prettify
 
 use_tex()
+set_style()
 
 
 def process_raw_data(

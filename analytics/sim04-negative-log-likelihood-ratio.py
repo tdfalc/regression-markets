@@ -8,15 +8,19 @@ from itertools import cycle
 import numpy as np
 from matplotlib import pyplot as plt
 from tqdm import tqdm
+from tfds.plotting import use_tex, prettify
 
 from regression_markets.market.task import (
     BayesianLinearRegression,
     MaximumLikelihoodLinearRegression,
     Task,
 )
-from analytics.helpers import save_figure, add_dummy, set_style
+from analytics.helpers import save_figure, build_input, set_style
 from regression_markets.common.log import create_logger
 from regression_markets.common.utils import tqdm_joblib, cache
+
+set_style()
+use_tex()
 
 
 def build_data(
@@ -32,8 +36,8 @@ def build_data(
         return X_train, X_test, y_train, y_test
 
     def _build_data(sample_size: int):
-        mean, cov, size = np.zeros(3), np.eye(3), sample_size + test_size
-        X = add_dummy(np.random.multivariate_normal(mean, cov, size=size))
+        size = sample_size + test_size
+        X = build_input(sample_size, size)
         noise = additive_noise_function(sample_size)
         y = interpolant_function(X) + noise * heteroskedasticity_function(X)
         return _split_data(X, y)
@@ -121,8 +125,10 @@ def main() -> None:
 
     # Induced misspecifications
     misspecified_interpolant_function = lambda X: X**2 @ coefficients
-    misspecified_additive_noise_function = lambda sample_size: np.random.standard_t(
-        df=2, size=(sample_size + test_size, 1)
+    misspecified_additive_noise_function = (
+        lambda sample_size: np.random.standard_t(
+            df=2, size=(sample_size + test_size, 1)
+        )
     )
     misspecified_heteroskedasticity_function = lambda X: X[:, -2:-1] ** 2
 
@@ -189,11 +195,11 @@ def main() -> None:
             markerfacecolor="White",
         )
 
-    ax.legend(framealpha=0)
     ax.set_ylabel(r"Improvement (\%)")
     ax.set_xlabel("Sample Size")
     ax.set_xscale("log")
     ax.set_ylim([-5, 45])
+    prettify(ax=ax, legend=True)
 
     fig.subplots_adjust(wspace=10)
     save_figure(fig, savedir, "nll_ratio")

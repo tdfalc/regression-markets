@@ -8,9 +8,13 @@ from matplotlib import cm
 import matplotlib as mpl
 from matplotlib import pyplot as plt
 from scipy.stats._multivariate import multivariate_normal_frozen as mvn_frozen
+from tfds.plotting import use_tex, prettify
 
 from regression_markets.common.log import create_logger
-from analytics.helpers import save_figure
+from analytics.helpers import save_figure, set_style
+
+use_tex()
+set_style()
 
 
 def make_regression(
@@ -119,7 +123,7 @@ def main() -> None:
         "high_correlation": {"sample_size": 500, "correlation": 0.995},
     }
 
-    fig, axs = plt.subplots(1, 3, figsize=(8, 2.5), sharey=True, sharex=True)
+    fig, axs = plt.subplots(1, 3, figsize=(9.5, 3), sharey=True, sharex=True)
 
     for ax, (_, experiment_config) in zip(axs.flatten(), experiments.items()):
         X, y = make_regression(
@@ -143,6 +147,7 @@ def main() -> None:
             yopt=coefficients[1][0],
             resolution=1000,
         )
+        prettify(ax=ax)
 
     save_figure(fig, savedir, "coefficient_uncertainty")
 

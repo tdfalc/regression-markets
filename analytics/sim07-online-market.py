@@ -9,6 +9,7 @@ import numpy as np
 from tqdm import tqdm
 from joblib import Parallel, delayed
 from functools import partial
+from tfds.plotting import use_tex, prettify
 
 from regression_markets.common.log import create_logger
 from regression_markets.common.utils import cache, tqdm_joblib
@@ -20,7 +21,6 @@ from analytics.helpers import (
     build_input,
     nested_defaultdict,
     bootstrap_resample,
-    conditional_value_at_risk,
     MarketDesigns,
     set_style,
 )
@@ -29,6 +29,9 @@ from regression_markets.market.policy import (
     KldCfModShapleyPolicy,
     KldContributionModShapleyPolicy,
 )
+
+set_style()
+use_tex()
 
 
 def build_data(
@@ -93,9 +96,9 @@ def parse_results(
             for market_design in market_designs:
                 for stage in stages:
                     for metric in metrics:
-                        parsed_results[i][market_design][stage][metric][j] = results[j][
-                            i
-                        ][market_design][stage][metric].T
+                        parsed_results[i][market_design][stage][metric][j] = (
+                            results[j][i][market_design][stage][metric].T
+                        )
 
     stacked_results = partial(defaultdict, partial(defaultdict, dict))()
     for market_design in market_designs:
@@ -119,59 +122,53 @@ def plot_coefficients(coefficients: np.ndarray, savedir: Path) -> None:
     ax.legend()
     ax.set_ylabel("Coefficient Value")
     ax.set_xlabel("Time Step")
+    prettify(ax=ax)
+    fig.tight_layout()
     save_figure(fig, savedir, "coefficients")
 
 
 def plot_metric_boostrap(results: Dict, savedir: Path, idx: int) -> None:
-    fig, ax1 = plt.subplots(1, 1, figsize=(6, 2.6), sharey=True, sharex=True)
+    fig, ax = plt.subplots(1, 1, figsize=(6, 2.6), sharey=True, sharex=True)
 
     colors = cycle(["blue", "darkorange", "limegreen"])
 
     metric = "payments"
-    for i, (ax, stage) in enumerate(zip((ax1,), ("test",))):
 
-        for market_design, market_results in results.items():
-            color = next(colors)
-            metric_results = np.swapaxes(market_results[stage][metric], 0, -1)
-            bootstraps = bootstrap_resample(metric_results, 500, sample_size=50)
-            expected_value = bootstraps.mean(axis=0)
-            expected_shortfall = conditional_value_at_risk(
-                bootstraps, axis=0, alpha=0.05
-            )
+    for market_design, market_results in results.items():
+        color = next(colors)
+        metric_results = np.swapaxes(market_results["test"][metric], 0, -1)
+        bootstraps = bootstrap_resample(metric_results, 500, sample_size=50)
+        expected_value = bootstraps.mean(axis=0)
 
-            for seller in (0,):
-
-                mean = expected_value.mean(axis=0)[seller, :, idx]
-                num_runs = np.arange(len(mean)) + 1
-                ax.plot(
-                    num_runs,
-                    mean.cumsum(),
-                    color=color,
-                    ls="-",
-                    lw=1,
-                    label=market_design.value if seller == 0 else None,
-                    zorder=1,
-                )
-                ax.axhline(y=0, c="lightgray", zorder=0, lw=0.8)
-
-                ax.yaxis.set_tick_params(labelbottom=True)
-                ax.set_ylabel("Revenue (EUR)")
-                if i == 0:
-                    ax.set_xlabel("Time Step")
-
-        ylim = ax.get_ylim()
-        ax.fill_between(
-            np.arange(11),
-            -20,
-            50,
-            color="none",
-            hatch="///",
-            edgecolor="lavender",
+        mean = expected_value.mean(axis=0)[0, :, idx]
+        num_runs = np.arange(len(mean)) + 1
+        ax.plot(
+            num_runs,
+            mean.cumsum(),
+            color=color,
+            ls="-",
+            lw=1,
+            label=market_design.value,
+            zorder=1,
         )
-        ax.set_xlim((-5, 105))
-        ax.set_ylim(ylim)
+        ax.axhline(y=0, c="lightgray", zorder=0, lw=0.8)
 
-    ax1.legend(framealpha=0, ncol=1)
+        ax.yaxis.set_tick_params(labelbottom=True)
+        ax.set_ylabel("Revenue (EUR)")
+        ax.set_xlabel("Time Step")
+
+    ylim = ax.get_ylim()
+    ax.fill_between(
+        np.arange(11),
+        -20,
+        50,
+        color="none",
+        hatch="///",
+        edgecolor="lavender",
+    )
+    ax.set_xlim((-5, 105))
+    ax.set_ylim(ylim)
+    prettify(ax=ax, legend_loc="upper left")
 
     save_figure(fig, savedir, "contributions_risk")
 
@@ -242,7 +239,9 @@ def main() -> None:
         forgetting_factors = config["forgetting_factors"]
         burn_in = config["burn_in"]
 
-        interpolant_function = lambda X: np.sum(X * coefficients, axis=1, keepdims=True)
+        interpolant_function = lambda X: np.sum(
+            X * coefficients, axis=1, keepdims=True
+        )
         additive_noise_function = lambda sample_size: np.random.normal(
             0, np.sqrt(noise_variance), size=(sample_size, 1)
         )

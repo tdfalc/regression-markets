@@ -89,8 +89,8 @@ class MaximumLikelihoodLinearRegression(Task):
         # maximum likelihood predictive distribution using the same analytical method
         # of integration.
         X, y = np.atleast_2d(X)[:, indices].copy(), np.atleast_2d(y).copy()
+        # print(X.shape)
         posterior_mean = (np.linalg.inv(X.T @ X) @ X.T @ y).flatten()
-
         posterior_covariance = np.diag(np.full(X.shape[1], math.ulp(1.0)))
         posterior = stats.multivariate_normal(
             posterior_mean, posterior_covariance
@@ -136,6 +136,7 @@ class BayesianLinearRegression(Task):
     def _update_posterior_coefficients(
         self, X: np.ndarray, y: np.ndarray, indices: Sequence
     ):
+
         X, y = np.atleast_2d(X)[:, indices], np.atleast_2d(y)
         noise_precision = self._calculate_noise_precision(indices)
         prior = self._build_prior(indices)
@@ -148,6 +149,7 @@ class BayesianLinearRegression(Task):
         posterior_mean = posterior_covariance.dot(
             inv_prior_covariance.dot(prior_mean) + noise_precision * X.T.dot(y)
         ).flatten()
+
         posterior = stats.multivariate_normal(
             posterior_mean, posterior_covariance
         )

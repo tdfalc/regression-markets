@@ -1,36 +1,33 @@
 from pathlib import Path
-import os
 
 import numpy as np
 from matplotlib import pyplot as plt
-
-from regression_markets.common.log import create_logger
-from analytics.helpers import save_figure
 from tfds.plotting import use_tex, prettify
 
+from regression_markets.common.log import create_logger
+from analytics.helpers import save_figure, set_style
+
+
 use_tex()
+set_style()
 
 
 class BasisFunctions:
-    def __init__(self, X: np.ndarray):
+    def __init__(self, X: np.ndarray) -> None:
         self.X = X
 
-    def trigonometric(self, offset, freq, scale: str):
-        return offset + scale * np.sin(freq * np.pi * self.X)
+    def trigonometric(
+        self, offset: float, freq: float, scale: float
+    ) -> np.ndarray:
+        return offset + scale * np.cos(freq * np.pi * self.X)
 
-    def constant(self, constant: float):
-        return np.repeat(constant, len(self.X))
-
-    def sigmoidal(self, mean: float, sdev: float):
+    def sigmoidal(self, mean: float, sdev: float) -> np.ndarray:
         return 1 / (1 + np.exp(-(self.X - mean) / sdev))
 
-    def gaussian(self, mean: float, variance: float):
-        return np.exp(-0.5 * (self.X - mean) ** 2 / variance)
-
-    def rq(self, mean: float, variance: float, alpha: float):
+    def rq(self, mean: float, variance: float, alpha: float) -> np.ndarray:
         return (1 + 0.5 * (self.X - mean) ** 2 / (alpha * variance)) ** -alpha
 
-    def polynomial(self, power: int):
+    def polynomial(self, power: int) -> np.ndarray:
         return self.X**power
 
 
@@ -38,136 +35,83 @@ def main() -> None:
     logger = create_logger(__name__)
     logger.info("Running basis functions analysis")
 
-    savedir = Path(__file__).parent / "docs/sim00-basis-functions"
-    os.makedirs(savedir, exist_ok=True)
+    savedir = Path(__file__).parent / "docs" / "sim00-basis-functions"
+    savedir.mkdir(parents=True, exist_ok=True)
 
     X = np.linspace(-1, 1, 100).reshape(-1, 1)
     basis_functions = BasisFunctions(X)
-    P = 4
 
     experiments = {
-        # "constant": {
-        #     "basis_function": "constant",
-        #     "kwargs": [
-        #         {"constant": 0.2},
-        #         {"constant": 0.7},
-        #         {"constant": 0.8},
-        #     ],
-        # },
         "sigmoidal": {
             "basis_function": "sigmoidal",
             "kwargs": [
-                {"mean": m, "sdev": 0.05}
-                for m in np.linspace(-2 / 3, 2 / 3, P)
-                # for m in np.linspace(-1, 1, P)
+                {"mean": -2 / 3, "sdev": 0.05},
+                {"mean": -2 / 9, "sdev": 0.05},
+                {"mean": 2 / 9, "sdev": 0.05},
+                {"mean": 2 / 3, "sdev": 0.05},
             ],
         },
         "polynomial": {
             "basis_function": "polynomial",
             "kwargs": [
-                {"power": p}
-                # for m in np.linspace(-2 / 3, 2 / 3, 11)
-                for p in np.arange(0, P)
+                {"power": 0},
+                {"power": 1},
+                {"power": 2},
+                {"power": 3},
             ],
         },
-        "gaussian": {
-            "basis_function": "gaussian",
-            # "kwargs": [
-            #     {"mean": -0.0, "variance": 0.9},
-            #     {"mean": -0.3, "variance": 0.3},
-            #     {"mean": -0.5, "variance": 0.1},
-            # ],
-            # "kwargs": [
-            #     {"mean": 0, "variance": 0.9},
-            #     {"mean": 0, "variance": 0.3},
-            #     {"mean": 0, "variance": 0.1},
-            # ],
+        "rational_quadratic": {
+            "basis_function": "rq",
             "kwargs": [
-                {"mean": 0, "variance": v}
-                # for m in np.linspace(-2 / 3, 2 / 3, 11)
-                for v in [0.05, 0.3, 0.7, 2]
+                {"mean": 0, "variance": 0.03, "alpha": 3},
+                {"mean": 0, "variance": 0.2, "alpha": 3},
+                {"mean": 0, "variance": 0.7, "alpha": 3},
+                {"mean": 0, "variance": 2, "alpha": 3},
             ],
         },
-        "trigonometric": {
-            "title": "Trigonometric",
-            "basis_function": "trigonometric",
-            "kwargs": [
-                {"offset": o, "scale": s, "freq": f}
-                # for m in np.linspace(-2 / 3, 2 / 3, 11)
-                for (o, s, f) in zip(
-                    [-4, -1.5, 1.5, 4],
-                    [1, 1, 1, 1],
-                    [0.5, 1, 2.5, 5],
-                )
-            ],
-        },
-        # "rational_quadratic": {
-        #     "basis_function": "rq",
+        # "trigonometric": {
+        #     "basis_function": "trigonometric",
         #     "kwargs": [
-        #         {"mean": 0, "variance": 0.3, "alpha": 0.1},
-        #         {"mean": 0, "variance": 0.3, "alpha": 0.2},
-        #         {"mean": 0, "variance": 0.3, "alpha": 0.7},
+        #         {"offset": 0, "scale": 1, "freq": 0.5},
+        #         {"offset": 2.2, "scale": 0.5, "freq": 3},
+        #         {"offset": 4, "scale": 0.2, "freq": 10},
+        #         {"offset": 6, "scale": 1, "freq": 5},
         #     ],
         # },
+        "trigonometric": {
+            "basis_function": "trigonometric",
+            "kwargs": [
+                {"offset": 0, "scale": 0.15, "freq": 0.5},
+                {"offset": 0.35, "scale": 0.15, "freq": 3},
+                {"offset": 0.65, "scale": 0.05, "freq": 15},
+                {"offset": 0.9, "scale": 0.1, "freq": 5},
+            ],
+        },
     }
 
+    # Create a 2x2 grid for subplots
     fig, axs = plt.subplots(2, 2, figsize=(8, 6))
-    # fig, axs = plt.subplots(2, 3, figsize=(8, 5))
 
-    def make_label(params: dict) -> str:
-        """Return a nicer label like 'constant=0.2, another=0.3'."""
-        # Sort to have a consistent order of keys in the label
-        items = sorted(params.items())
-        # Format each "key=value" pair, then join
-        string = ", ".join(f"{k}={v}" for k, v in items)
-        string = string.replace("mean", "$\mu$")
-        string = string.replace("variance", "$\sigma^2$")
-        string = string.replace("constant", "$c$")
-        string = string.replace("coefficient", "$w$")
-        string = string.replace("alpha", r"$\alpha$")
-        string = string.replace("power", r"$\alpha$")
-        string = string.replace("np.", "")
-        string = string.replace("func=", "")
-        string = string.replace("sin", "Sine")
-        string = string.replace("cos", "Cosine")
-        return string
-
-    c = [
-        # "#000000",  # Black
-        "#F5793A",  # Orange
-        "#4BA6FB",  # Modified blue (original was #85C0F9)
-        "#A95AA1",  # Pink
-        "#689948",  # Green: not optimal for colour-blind people
-    ] * 10
-    # c = ["lime", "b", "y", "purple", "teal", "r"] * 10
-    # c = ["#1b9e77", "#d95f02", "#7570b3", "#e7298a", "#e6ab02"] * 2
-    # c = [
-    #     "#2F3EEA",
-    #     "#1FD082",
-    #     "#030F4F",
-    #     "#F6D04D",
-    #     "#FC7634",
-    # ]
-    import matplotlib as mpl
-
-    # c = plt.get_cmap("viridis", 4).colors  # 11 discrete colors
+    # Use a colormap with 4 colors (each experiment has 4 curves)
+    cmap = plt.get_cmap("viridis", 4).colors
 
     for (experiment_title, experiment_config), ax in zip(
         experiments.items(), axs.flatten()
     ):
         for i, kwargs in enumerate(experiment_config["kwargs"]):
-            phi = getattr(basis_functions, experiment_config["basis_function"])(
-                **kwargs
+            basis_func = getattr(
+                basis_functions, experiment_config["basis_function"]
             )
-            ax.plot(X, phi, label=make_label(kwargs), color=c[i], lw=1)
+            phi = basis_func(**kwargs)
+            ax.plot(X, phi, color=cmap[i], lw=1)
         ax.set_xlabel(r"$x_t$")
         ax.set_ylabel(r"$\varphi(x_t)$")
-        ax.set_title(
-            " ".join(word.capitalize() for word in experiment_title.split("_"))
+        title = " ".join(
+            word.capitalize() for word in experiment_title.split("_")
         )
+        ax.set_title(title)
         ax.set_xlim(-1, 1)
-        ax.set_ylim(bottom=0)
-
+        ax.set_ylim(bottom=0, top=1.05)
         prettify(ax=ax, legend=False, legend_loc="lower right")
 
     save_figure(fig, savedir, "basis_functions")
