@@ -6,7 +6,9 @@ from scipy import stats
 
 from regression_markets.market.task import Task
 from regression_markets.common.utils import chain_combinations, safe_divide
-from regression_markets.common.objective import expected_kl_divergence_univariate_normal
+from regression_markets.common.objective import (
+    expected_kl_divergence_univariate_normal,
+)
 
 
 class SemivaluePolicy:
@@ -24,6 +26,9 @@ class SemivaluePolicy:
         self.num_baseline_agents = len(self.baseline_agents)
         self.num_agents = self.num_active_agents + self.num_baseline_agents
         self.regression_task = regression_task
+        self.num_features = np.max(
+            [len(i) for i in self.regression_task._posteriors.keys()]
+        )
 
     def _value(self, X: np.ndarray, y: np.ndarray, indices: List) -> Dict:
         raise NotImplementedError
@@ -36,7 +41,9 @@ class SemivaluePolicy:
     def _contribution_weight(self, *args) -> float:
         raise NotImplementedError
 
-    def _weighted_avg_contributions(self, X: np.ndarray, y: np.ndarray) -> np.ndarray:
+    def _weighted_avg_contributions(
+        self, X: np.ndarray, y: np.ndarray
+    ) -> np.ndarray:
         agent_combinations = chain_combinations(
             self.active_agents, 1, self.degree, replace=True
         )
@@ -52,7 +59,9 @@ class SemivaluePolicy:
             ):
 
                 def coalition(with_agent: bool):
-                    agents = set(combination).union({agent} if with_agent else {})
+                    agents = set(combination).union(
+                        {agent} if with_agent else {}
+                    )
                     return self.baseline_agents | {
                         agent_combinations.index(c) + len(self.baseline_agents)
                         for c in agent_combinations
@@ -61,22 +70,30 @@ class SemivaluePolicy:
 
                 agent_marginal_contributions.append(
                     self._contribution_weight(len(combination))
-                    * self._contribution(X, y, coalition(False), coalition(True))
+                    * self._contribution(
+                        X, y, coalition(False), coalition(True)
+                    )
                 )
 
             marginal_contributions.append(agent_marginal_contributions)
         return np.array(marginal_contributions).sum(axis=1)
 
-    def _grand_coalition_contribution(self, X: np.ndarray, y: np.ndarray) -> float:
+    def _grand_coalition_contribution(
+        self, X: np.ndarray, y: np.ndarray
+    ) -> float:
         return self._contribution(
             X, y, self.baseline_agents, np.arange(self.num_agents)
         )
 
-    def _allocation(self, X: np.ndarray, y: np.ndarray, contributions: np.ndarray):
+    def _allocation(
+        self, X: np.ndarray, y: np.ndarray, contributions: np.ndarray
+    ):
         grand_coalition_contribution = self._grand_coalition_contribution(X, y)
         return safe_divide(contributions, grand_coalition_contribution)
 
-    def run(self, X: np.ndarray, y: np.ndarray, payment: float) -> Tuple:
+    def run(
+        self, X: np.ndarray, y: np.ndarray, payment: float
+    ) -> Dict[str, np.ndarray]:
         results = {
             "allocations": np.full(self.num_active_agents, np.nan),
             "contributions": np.full(self.num_active_agents, np.nan),
@@ -142,7 +159,10 @@ class NllShapleyPolicy(ShapleyPolicy):
     def _coalition_posterior(self, indices: List) -> np.ndarray:
         if self.observational:
             return self.regression_task.get_posterior(np.sort(indices))
-        posterior = self.regression_task.get_posterior(np.arange(self.num_agents))
+
+        posterior = self.regression_task.get_posterior(
+            np.arange(self.num_features)
+        )
         mean = posterior.mean[np.sort(indices)]
         cov = posterior.cov[:, np.sort(indices)][np.sort(indices), :]
 
@@ -151,7 +171,9 @@ class NllShapleyPolicy(ShapleyPolicy):
     def _coalition_noise_variance(self, indices: List) -> np.ndarray:
         if self.observational:
             return self.regression_task.get_noise_variance(np.sort(indices))
-        return self.regression_task.get_noise_variance(np.sort(indices))
+        return self.regression_task.get_noise_variance(
+            np.arange(self.num_features)
+        )
 
 
 class KldCfModShapleyPolicy(NllShapleyPolicy):
@@ -181,8 +203,12 @@ class KldCfModShapleyPolicy(NllShapleyPolicy):
 
     def _value(self, X: np.ndarray, y: np.ndarray, indices: List) -> float:
         buyer_indices = np.arange(len(self.baseline_agents))
-        buyer_mean, buyer_variance = self._pred_mean_and_variance(X, buyer_indices)
-        coalition_mean, coalition_variance = self._pred_mean_and_variance(X, indices)
+        buyer_mean, buyer_variance = self._pred_mean_and_variance(
+            X, buyer_indices
+        )
+        coalition_mean, coalition_variance = self._pred_mean_and_variance(
+            X, indices
+        )
         return expected_kl_divergence_univariate_normal(
             buyer_mean, buyer_variance, coalition_mean, coalition_variance
         )
@@ -217,7 +243,9 @@ class KldContributionModShapleyPolicy(KldCfModShapleyPolicy):
         self, X: np.ndarray, y: np.ndarray, excl: Set, incl: Set
     ) -> float:
         prior_mean, prior_variance = self._pred_mean_and_variance(X, list(excl))
-        posterior_mean, posterior_variance = self._pred_mean_and_variance(X, list(incl))
+        posterior_mean, posterior_variance = self._pred_mean_and_variance(
+            X, list(incl)
+        )
         return expected_kl_divergence_univariate_normal(
             prior_mean, prior_variance, posterior_mean, posterior_variance
         )

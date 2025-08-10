@@ -21,7 +21,10 @@ set_style()
 
 
 def plot_posterior(
-    ax: mpl.axes.SubplotBase, distribution: mvn_frozen, coefficients: np.ndarray
+    ax: mpl.axes.SubplotBase,
+    distribution: mvn_frozen,
+    coefficients: np.ndarray,
+    xlabel: bool = False,
 ) -> None:
     resolution = 1000
     grid = np.linspace(-1, 1, resolution)
@@ -39,8 +42,11 @@ def plot_posterior(
     )
     ax.axvline(x=coefficients[0], ls="--", c="black", lw=1)
     ax.axhline(y=coefficients[1], ls="--", c="black", lw=1)
-    ax.set_xlabel(r"$w_2$")
-    ax.set_ylabel(r"$w_3$")
+    if xlabel:
+        ax.set_xlabel(r"$w_0$")
+    else:
+        ax.set_xticklabels([])
+    ax.set_ylabel(r"$w_1$")
     ax.set_xticks([-1, -0.5, 0, 0.5, 1])
     prettify(ax=ax, legend=False)
 
@@ -60,7 +66,7 @@ def run_bayesian_updates_experiment(savedir: Path):
 
     experiments = [{"train_size": 1}, {"train_size": 3}, {"train_size": 20}]
 
-    fig, axs = plt.subplots(3, 2, figsize=(7, 6), width_ratios=[1, 2])
+    fig, axs = plt.subplots(3, 2, figsize=(9, 8), width_ratios=[1, 2])
 
     for i, experiment in enumerate(experiments):
         train_size = experiment["train_size"]
@@ -74,18 +80,20 @@ def run_bayesian_updates_experiment(savedir: Path):
         posterior = task.get_posterior(indices)
 
         ax_post = axs[i, 0]
-        plot_posterior(ax_post, posterior, coefficients)
+        plot_posterior(ax_post, posterior, coefficients, xlabel=i == 2)
         ax_post.set_xticks([-1, 0, 1])
         ax_post.set_yticks([-1, 0, 1])
         prettify(ax=ax_post, legend=False)
 
         ax_pred = axs[i, 1]
+        if i < 2:
+            ax_pred.set_xticklabels([])
         xs = X[:, 1]
         ax_pred.plot(xs, y, ls="dashed", color="k", lw=1)
-        ax_pred.set_ylim(-1.5, 1.5)
-
         cmap = plt.get_cmap("viridis", 5)
         color = cmap.colors[2]
+
+        ax_pred.set_title(f"$N = {train_size}$")
 
         y_hats = X @ posterior.rvs(100).T
         mean = y_hats.mean(axis=1)
@@ -99,9 +107,12 @@ def run_bayesian_updates_experiment(savedir: Path):
             X_train[:, 1], y_train, marker="x", s=50, c="r", zorder=3
         )
         ax_pred.set_xlim(-1, 1)
-        ax_pred.set_xlabel(r"$x_{t}$")
-        ax_pred.set_ylabel(r"$y_y$")
-        prettify(ax=ax_pred, legend=False)
+        ax_pred.set_xticks([-1, -0.6, -0.2, 0.2, 0.6, 1])
+        if i == 2:
+            ax_pred.set_xlabel(r"$x^{(t)}$")
+        ax_pred.set_ylabel(r"$y^{(t)}$")
+        ax_pred.set_ylim(-1.5, 1.3)
+        prettify(ax=ax_pred, legend=False, ticks=False)
 
     fig.tight_layout()
     save_figure(fig, savedir, "bayesian_updates")
@@ -109,9 +120,9 @@ def run_bayesian_updates_experiment(savedir: Path):
 
 def run_polynomial_fit_experiment(savedir: Path):
     powers = [0, 1, 2, 3]
-    fig, axs = plt.subplots(2, 2)
+    fig, axs = plt.subplots(2, 2, figsize=(9, 6), sharey=True, sharex=True)
     regularization = 5e-3
-    noise_variance = 0.03
+    noise_variance = 0.05
     sample_size = 100
 
     X = np.linspace(0, 1, sample_size).reshape(-1, 1)
@@ -119,7 +130,7 @@ def run_polynomial_fit_experiment(savedir: Path):
     y_noisy = y + np.random.normal(
         0, np.sqrt(noise_variance), size=(sample_size, 1)
     )
-    idx_train = np.random.randint(sample_size, size=10)
+    idx_train = np.random.choice(sample_size, size=10, replace=False)
 
     for i, p in enumerate(powers):
         task = Blr(noise_variance=noise_variance, regularization=regularization)
@@ -152,10 +163,14 @@ def run_polynomial_fit_experiment(savedir: Path):
         ax.scatter(
             X_train[:, 0], y_train, marker="x", s=50, color="r", zorder=3
         )
-        ax.set_xlabel(r"$x_{t}$")
-        ax.set_ylabel(r"$y_t$")
+        if i > 1:
+            ax.set_xlabel(r"$x^{(t)}$")
+        if i % 2 == 0:
+            ax.set_ylabel(r"$y^{(t)}$")
+        ax.set_title(f"$c={p}$")
         ax.set_ylim(-1, 2)
-        prettify(ax=ax, legend=False)
+        # ax.grid(c="#c0c0c0", alpha=0.5, lw=1)
+        prettify(ax=ax, legend=False, ticks=False)
 
     fig.tight_layout()
     save_figure(fig, savedir, "polynomial_fit")
@@ -181,7 +196,7 @@ def run_overfitting_experiment(savedir: Path):
     }
 
     fig, (ax_loss, ax_pred) = plt.subplots(
-        1, 2, figsize=(7, 2.5), width_ratios=[1, 2]
+        1, 2, figsize=(9.5, 3.25), width_ratios=[1, 2]
     )
 
     for run in tqdm(range(num_runs), desc="Runs"):
@@ -242,10 +257,10 @@ def run_overfitting_experiment(savedir: Path):
             zorder=3,
         )
     ax_loss.set_yscale("log")
-    ax_loss.set_xlabel("$p$")
-    ax_loss.set_ylabel(r"$\mathbb{E}[-\log p(y_t \vert x_t)]$")
+    ax_loss.set_xlabel("$c$")
+    ax_loss.set_ylabel(r"$\mathbb{E}[-\log \hat{y}^{(t)}]$")
     ax_loss.set_xticks(powers[::2])
-    prettify(ax=ax_loss, legend=True, legend_loc="upper left")
+    prettify(ax=ax_loss, legend=False, legend_loc="upper left")
 
     # Plot predictions on test data
     X_test = X[idx_test, 0]
@@ -282,8 +297,9 @@ def run_overfitting_experiment(savedir: Path):
             X_train[:, 0], y_train, marker="x", s=50, color="r", zorder=3
         )
     ax_pred.set_ylim(-1, 2)
-    ax_pred.set_xlabel(r"$x_t$")
-    ax_pred.set_ylabel(r"$y_t$")
+    ax_pred.set_xlabel(r"$x^{(t)}$")
+    ax_pred.set_ylabel(r"$y^{(t)}$")
+    ax_pred.set_xlim(left=0, right=1)
     prettify(ax=ax_pred, legend=False)
 
     fig.tight_layout()

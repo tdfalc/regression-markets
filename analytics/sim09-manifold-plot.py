@@ -37,6 +37,7 @@ def plot_manifold(savedir: Path) -> None:
         contour = ax.contour(
             XX, YY, ZZ, colors="magenta", levels=num_levels, linewidths=1
         )
+
         contour_levels = contour.collections
 
         # Display only the outermost contour level

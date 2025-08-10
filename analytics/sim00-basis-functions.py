@@ -24,8 +24,8 @@ class BasisFunctions:
     def sigmoidal(self, mean: float, sdev: float) -> np.ndarray:
         return 1 / (1 + np.exp(-(self.X - mean) / sdev))
 
-    def rq(self, mean: float, variance: float, alpha: float) -> np.ndarray:
-        return (1 + 0.5 * (self.X - mean) ** 2 / (alpha * variance)) ** -alpha
+    def gaussian(self, mean: float, variance: float):
+        return np.exp(-0.5 * (self.X - mean) ** 2 / variance)
 
     def polynomial(self, power: int) -> np.ndarray:
         return self.X**power
@@ -60,24 +60,15 @@ def main() -> None:
                 {"power": 3},
             ],
         },
-        "rational_quadratic": {
-            "basis_function": "rq",
+        "gaussian": {
+            "basis_function": "gaussian",
             "kwargs": [
-                {"mean": 0, "variance": 0.03, "alpha": 3},
-                {"mean": 0, "variance": 0.2, "alpha": 3},
-                {"mean": 0, "variance": 0.7, "alpha": 3},
-                {"mean": 0, "variance": 2, "alpha": 3},
+                {"mean": 0, "variance": 0.03},
+                {"mean": 0, "variance": 0.2},
+                {"mean": 0, "variance": 0.7},
+                {"mean": 0, "variance": 2},
             ],
         },
-        # "trigonometric": {
-        #     "basis_function": "trigonometric",
-        #     "kwargs": [
-        #         {"offset": 0, "scale": 1, "freq": 0.5},
-        #         {"offset": 2.2, "scale": 0.5, "freq": 3},
-        #         {"offset": 4, "scale": 0.2, "freq": 10},
-        #         {"offset": 6, "scale": 1, "freq": 5},
-        #     ],
-        # },
         "trigonometric": {
             "basis_function": "trigonometric",
             "kwargs": [
@@ -90,29 +81,33 @@ def main() -> None:
     }
 
     # Create a 2x2 grid for subplots
-    fig, axs = plt.subplots(2, 2, figsize=(8, 6))
+    fig, axs = plt.subplots(2, 2, figsize=(9, 6), sharex=True, sharey=True)
 
     # Use a colormap with 4 colors (each experiment has 4 curves)
     cmap = plt.get_cmap("viridis", 4).colors
 
-    for (experiment_title, experiment_config), ax in zip(
-        experiments.items(), axs.flatten()
+    for i, ((experiment_title, experiment_config), ax) in enumerate(
+        zip(experiments.items(), axs.flatten())
     ):
-        for i, kwargs in enumerate(experiment_config["kwargs"]):
+        for j, kwargs in enumerate(experiment_config["kwargs"]):
             basis_func = getattr(
                 basis_functions, experiment_config["basis_function"]
             )
             phi = basis_func(**kwargs)
-            ax.plot(X, phi, color=cmap[i], lw=1)
-        ax.set_xlabel(r"$x_t$")
-        ax.set_ylabel(r"$\varphi(x_t)$")
+            ax.plot(X, phi, color=cmap[j], lw=1)
+        if i > 1:
+            ax.set_xlabel(r"$x^{(t)}$")
+        if i % 2 == 0:
+            ax.set_ylabel(r"$\varphi(x^{(t)})$")
+
         title = " ".join(
             word.capitalize() for word in experiment_title.split("_")
         )
         ax.set_title(title)
         ax.set_xlim(-1, 1)
         ax.set_ylim(bottom=0, top=1.05)
-        prettify(ax=ax, legend=False, legend_loc="lower right")
+        # ax.grid(c="#c0c0c0", alpha=0.5, lw=1)
+        prettify(ax=ax, legend=False, legend_loc="lower right", ticks=False)
 
     save_figure(fig, savedir, "basis_functions")
 

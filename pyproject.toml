@@ -1,22 +1,16 @@
-[tool.poetry]
+[project]
 name = "regression-markets"
 version = "0.1.0"
-description = ""
-authors = ["tdfalc <tomdfalc@gmail.com>"]
+description = "Add your description here"
 readme = "README.md"
-
-[tool.poetry.dependencies]
-python = "^3.11"
-numpy = "^2.0.0"
-matplotlib = "^3.9.0"
-cloudpickle = "^3.0.0"
-tqdm = "^4.66.4"
-scipy = "^1.13.1"
-joblib = "^1.4.2"
-geopandas = "^0.14.4"
-pandas = "^2.2.3"
-
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires-python = ">=3.13"
+dependencies = [
+    "geopandas>=1.1.1",
+    "joblib>=1.5.1",
+    "matplotlib<=3.9.2",
+    "numpy>=2.3.2",
+    "pandas>=2.3.1",
+    "scipy>=1.16.1",
+    "tfds>=0.3",
+    "tqdm>=4.67.1",
+]

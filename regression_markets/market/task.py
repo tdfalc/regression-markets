@@ -53,7 +53,6 @@ class Task:
         return (
             np.einsum("ij,jk,ki->i", X, posterior.cov, X.T) + noise_variance
         ).reshape(-1, 1)
-        # return noise_variance
 
     def _predict(
         self, X: np.ndarray, posterior: mvn_frozen, noise_variance: float

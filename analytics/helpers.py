@@ -1,12 +1,10 @@
 from pathlib import Path
 from collections import defaultdict
 from enum import Enum
-from typing import Callable, Any
+from typing import Any
 
 import numpy as np
 import matplotlib.pyplot as plt
-
-from regression_markets.market.data import BatchData
 
 
 def set_style() -> None:

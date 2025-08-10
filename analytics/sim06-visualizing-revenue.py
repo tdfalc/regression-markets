@@ -146,8 +146,8 @@ def plot_results(
     savedir: Path,
 ) -> None:
     colors = cycle(plt.get_cmap("viridis", 5).colors[1:])
-    fig, axs = plt.subplots(4, 1, figsize=(6.2, 7), sharey=True, sharex=True)
-    fig, axs = plt.subplots(4, 1, figsize=(6, 6), sharey=True, sharex=True)
+    # fig, axs = plt.subplots(4, 1, figsize=(6.2, 7), sharey=True, sharex=True)
+    fig, axs = plt.subplots(3, 1, figsize=(5, 5), sharey=True, sharex=True)
 
     markers = cycle(["o", "d", ">", "s"])
 
@@ -205,7 +205,7 @@ def plot_results(
 
     for j, ax in enumerate(axs.flatten()):
         prettify(ax=ax, legend=False)
-        if j == 0:
+        if j == 1:
             ax.legend(
                 custom_lines,
                 [
@@ -220,9 +220,9 @@ def plot_results(
         ax.axvline(x=0, color="lightgray", lw=1)
         ax.axhline(y=0, color="lightgray", lw=1)
 
-        ax.set_ylabel(r"$\mathbb{E}[\pi]$")
-        if j == 3:
-            ax.set_xlabel(r"$\mathbb{E}[\pi \vert \pi \leq Q_{\alpha} (\pi)]$")
+        ax.set_ylabel(r"$\mathbb{E}[r]$")
+        if j == 2:
+            ax.set_xlabel(r"$\mathbb{E}[r \vert r \leq Q_{\alpha} (r)]$")
         ax.set_xscale("symlog", linthresh=1e-2)
         ax.set_yscale("symlog", linthresh=1e-1)
         ax.set_xlim([-0.005, 80])
@@ -230,6 +230,7 @@ def plot_results(
 
         ax.yaxis.set_tick_params(labelbottom=True)
 
+    # prettify(ax=ax, legend_loc="upper left", legend=False)
     save_figure(fig, savedir, f"revenue")
 
 
@@ -237,7 +238,7 @@ def main() -> None:
     logger = create_logger(__name__)
     logger.info("Running visualizing revenue analysis")
 
-    savedir = Path(__file__).parent / "docs/sim05-visualizing-revenue"
+    savedir = Path(__file__).parent / "docs/sim06-visualizing-revenue"
     os.makedirs(savedir, exist_ok=True)
 
     set_style()
@@ -253,14 +254,14 @@ def main() -> None:
 
     # Specified market designs
     market_designs = {
-        MarketDesigns.mle_nll: {
-            "task": MaximumLikelihoodLinearRegression,
-            "kwargs": {
-                "noise_variance": noise_variance,
-            },
-            "market": BatchMarket,
-            "policy": NllShapleyPolicy,
-        },
+        # MarketDesigns.mle_nll: {
+        #     "task": MaximumLikelihoodLinearRegression,
+        #     "kwargs": {
+        #         "noise_variance": noise_variance,
+        #     },
+        #     "market": BatchMarket,
+        #     "policy": NllShapleyPolicy,
+        # },
         MarketDesigns.blr_nll: {
             "task": BayesianLinearRegression,
             "kwargs": {

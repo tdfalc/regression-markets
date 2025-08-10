@@ -188,7 +188,7 @@ def build_market_data(
 
 def plot_raw_data(raw_data: pd.DataFrame, savedir: Path) -> None:
     fig, ax = plt.subplots(dpi=300, figsize=(6, 4))
-    for wf, data in raw_data.groupby(pd.Grouper(freq="SM")).mean().items():
+    for wf, data in raw_data.groupby(pd.Grouper(freq="SME")).mean().items():
         ax.plot(data, label=wf)
     ax.legend(ncol=5)
     ax.set_xlabel("Date")
@@ -223,6 +223,7 @@ def plot_map(
     marker_size = [value * 500 for value in normalized_correlation]
 
     fig, ax = plt.subplots(dpi=600, figsize=(3.6, 3.2))
+    fig, ax = plt.subplots(figsize=(6.5, 6), dpi=300)
     gdf_shapefile.plot(ax=ax, color="k", edgecolor="w", alpha=0.2, lw=1)
     gdf_points.plot(
         ax=ax, c="None", markersize=marker_size, edgecolor="r", lw=2
@@ -442,7 +443,8 @@ def plot_policy_comparison(
     metric = "allocations"
 
     # fig, ax = plt.subplots(figsize=(6, 3), dpi=300)
-    fig, ax = plt.subplots(figsize=(6.5, 3), dpi=300)
+    # fig, ax = plt.subplots(figsize=(6.5, 3), dpi=300)
+    fig, ax = plt.subplots(figsize=(5, 3), dpi=300)
 
     labels = [
         "Interventional",

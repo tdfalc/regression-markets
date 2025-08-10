@@ -116,7 +116,7 @@ def parse_results(
 
 
 def plot_coefficients(coefficients: np.ndarray, savedir: Path) -> None:
-    fig, ax = plt.subplots(figsize=(4, 2.5))
+    fig, ax = plt.subplots(figsize=(6, 2.6))
     for i, agent in enumerate(range(coefficients.shape[1])):
         ax.plot(coefficients[:, agent], label=f"w{i}")
     ax.legend()

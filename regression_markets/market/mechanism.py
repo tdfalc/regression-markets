@@ -1,4 +1,4 @@
-from typing import Type
+from typing import Type, Dict
 
 import numpy as np
 from tqdm import tqdm
@@ -17,7 +17,7 @@ class Market:
         observational: bool = True,
         train_payment: float = 1,
         test_payment: float = 1,
-    ):
+    ) -> None:
         self.market_data = market_data
         self.regression_task = regression_task
         self.observational = observational
@@ -30,7 +30,7 @@ class Market:
         y: np.ndarray,
         payment: float,
         policy: Type[SemivaluePolicy],
-    ):
+    ) -> Dict[str, np.ndarray]:
         return policy(
             active_agents=self.market_data.active_agents,
             baseline_agents=self.market_data.baseline_agents,
@@ -39,13 +39,15 @@ class Market:
             observational=self.observational,
         ).run(X, y, payment)
 
-    def _precalculate_posteriors(self, X: np.ndarray, y: np.ndarray):
+    def _precalculate_posteriors(self, X: np.ndarray, y: np.ndarray) -> None:
         num_features = X.shape[1]
-
-        for indices in chain_combinations(
-            np.arange(num_features), 1, num_features
-        ):
-            self.regression_task.update_posterior(X, y, indices)
+        if self.observational:
+            for indices in chain_combinations(
+                np.arange(num_features), 1, num_features
+            ):
+                self.regression_task.update_posterior(X, y, indices)
+        else:
+            self.regression_task.update_posterior(X, y, np.arange(num_features))
 
 
 class BatchMarket(Market):
@@ -56,7 +58,7 @@ class BatchMarket(Market):
         observational: bool = True,
         train_payment: float = 1,
         test_payment: float = 1,
-    ):
+    ) -> None:
         super().__init__(
             market_data=market_data,
             regression_task=regression_task,
@@ -68,7 +70,7 @@ class BatchMarket(Market):
             self.market_data.X_train, self.market_data.y_train
         )
 
-    def run(self, policy: Type[SemivaluePolicy]):
+    def run(self, policy: Type[SemivaluePolicy]) -> Dict[str, np.ndarray]:
         results = {}
         for stage, payment, X, y in zip(
             ("train", "test"),
@@ -91,7 +93,7 @@ class OnlineMarket(Market):
         observational: bool = True,
         train_payment: float = 1,
         test_payment: float = 1,
-    ):
+    ) -> None:
         super().__init__(
             market_data=market_data,
             regression_task=regression_task,
@@ -106,7 +108,7 @@ class OnlineMarket(Market):
         self.X = self.market_data.X
         self.y = self.market_data.y
 
-    def _init_empty_results(self):
+    def _init_empty_results(self) -> None:
         return {
             "allocations": np.zeros((self.num_runs, self.num_active_agents)),
             "contributions": np.zeros((self.num_runs, self.num_active_agents)),
@@ -119,7 +121,7 @@ class OnlineMarket(Market):
         y: np.ndarray,
         payment: float,
         policy: Type[SemivaluePolicy],
-    ):
+    ) -> Dict[str, np.ndarray]:
         return policy(
             active_agents=self.market_data.active_agents,
             baseline_agents=self.market_data.baseline_agents,
@@ -128,7 +130,9 @@ class OnlineMarket(Market):
             observational=self.observational,
         ).run(X, y, payment)
 
-    def run(self, policy: Type[SemivaluePolicy], verbose: bool = False):
+    def run(
+        self, policy: Type[SemivaluePolicy], verbose: bool = False
+    ) -> Dict[str, np.ndarray]:
         results = {
             "train": self._init_empty_results(),
             "test": self._init_empty_results(),
